@@ -1,6 +1,8 @@
 import { parseArgs } from 'node:util';
 import { logger } from '../diagnostics/logger.js';
 import { EXIT_CODES } from '../diagnostics/outcomes.js';
+import { defaultRedactor } from '../security/redaction.js';
+import { runInspectCommand } from './commands/inspect.js';
 
 export interface CliOptions {
   config?: string;
@@ -85,15 +87,25 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
       json: parsed.options.json,
     });
 
-    // In this walking skeleton tracer, if inspect or config is given without implementation:
-    if (!parsed.options.config && parsed.command === 'inspect') {
-      logger.error('Missing required configuration file (--config <path>)');
-      return EXIT_CODES.CONFIG_ERROR;
+    const isInspect = !parsed.command || parsed.command === 'inspect';
+    if (isInspect) {
+      if (!parsed.options.config) {
+        logger.error('Missing required configuration file (--config <path>)');
+        return EXIT_CODES.CONFIG_ERROR;
+      }
+
+      return await runInspectCommand({
+        configPath: parsed.options.config,
+        json: parsed.options.json,
+      });
     }
 
-    return EXIT_CODES.SUCCESS;
+    logger.error(`Unknown command '${parsed.command}'`);
+    process.stdout.write(CLI_HELP);
+    return EXIT_CODES.CONFIG_ERROR;
   } catch (error) {
-    logger.error('CLI execution error', { error: String(error) });
+    const sanitizedError = defaultRedactor.redactError(error as Error);
+    logger.error('Unhandled CLI execution error', { error: sanitizedError.message });
     return EXIT_CODES.CONFIG_ERROR;
   }
 }

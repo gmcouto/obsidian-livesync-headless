@@ -1,12 +1,15 @@
-export type OutcomeCategory =
-  | 'SUCCESS'
-  | 'CONFIG_ERROR'
-  | 'AUTHENTICATION_ERROR'
-  | 'INCOMPATIBLE'
-  | 'NOT_FOUND'
-  | 'TRANSIENT_OUTAGE'
-  | 'MUTATION_VIOLATION'
-  | 'CORRUPTION';
+export const OutcomeCategory = {
+  SUCCESS: 'SUCCESS',
+  CONFIG_ERROR: 'CONFIG_ERROR',
+  AUTHENTICATION_ERROR: 'AUTHENTICATION_ERROR',
+  INCOMPATIBLE: 'INCOMPATIBLE',
+  NOT_FOUND: 'NOT_FOUND',
+  TRANSIENT_OUTAGE: 'TRANSIENT_OUTAGE',
+  MUTATION_VIOLATION: 'MUTATION_VIOLATION',
+  CORRUPTION: 'CORRUPTION',
+} as const;
+
+export type OutcomeCategory = (typeof OutcomeCategory)[keyof typeof OutcomeCategory];
 
 export const EXIT_CODES: Record<OutcomeCategory, number> = {
   SUCCESS: 0,

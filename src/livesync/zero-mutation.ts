@@ -4,6 +4,8 @@ import {
   MILESTONE_DOCID,
   DOCID_SYNC_PARAMETERS,
   SYNCINFO_ID,
+  AuthenticationRequiredError,
+  DatabaseNotFoundError,
   type CouchDbDocument,
 } from './inspector.js';
 
@@ -49,6 +51,17 @@ export class ZeroMutationVerifier {
       method: 'GET',
       headers,
     });
+
+    if (dbRes.status === 401 || dbRes.status === 403) {
+      throw new AuthenticationRequiredError(
+        dbRes.status,
+        `Access denied for database '${databaseName}'.`
+      );
+    }
+
+    if (dbRes.status === 404) {
+      throw new DatabaseNotFoundError(databaseName);
+    }
 
     if (!dbRes.ok) {
       throw new Error(

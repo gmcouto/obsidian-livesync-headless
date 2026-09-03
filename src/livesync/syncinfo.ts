@@ -56,10 +56,10 @@ export async function verifySyncinfo(
         saltBytes = new TextEncoder().encode(rawSalt);
       }
 
-      decrypted = await decryptHkdf(rawData, passphrase, saltBytes);
+      decrypted = await decryptHkdf(rawData, passphrase, saltBytes as any);
     } else {
-      // Legacy V2/V3 encryption
-      decrypted = await decryptV2(rawData, passphrase);
+      // Legacy V2/V3 encryption (requires autoCalculateIterations boolean)
+      decrypted = await decryptV2(rawData, passphrase, false);
     }
 
     return { verified: true, decryptedData: decrypted };

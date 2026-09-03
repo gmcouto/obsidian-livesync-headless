@@ -1,5 +1,6 @@
 export * from './diagnostics/outcomes.js';
 export * from './diagnostics/logger.js';
+export * from './diagnostics/formatters.js';
 export * from './security/redaction.js';
 export * from './security/transport-guard.js';
 export * from './security/capabilities.js';
@@ -12,4 +13,5 @@ export * from './livesync/negotiation.js';
 export * from './livesync/syncinfo.js';
 export * from './storage/sqlite.js';
 export * from './storage/admission-repo.js';
+export * from './cli/commands/inspect.js';
 export * from './cli/index.js';
