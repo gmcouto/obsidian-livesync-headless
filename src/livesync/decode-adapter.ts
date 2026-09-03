@@ -8,13 +8,15 @@ import {
   PREFIX_CHUNK,
   PREFIX_ENCRYPTED_CHUNK,
   PREFIX_OBFUSCATED,
+  FlagFilesOriginal,
+  FlagFilesHumanReadable,
 } from '@vrtmrz/livesync-commonlib/compat/common/types';
 import {
   path2id_base,
   id2path_base,
-  shouldBeIgnored as commonlibShouldBeIgnored,
+  shouldBeIgnored,
 } from '@vrtmrz/livesync-commonlib/compat/string_and_binary/path';
-import { validateStoragePath as commonlibValidateStoragePath } from '@vrtmrz/livesync-commonlib/node';
+import { validateStoragePath } from '@vrtmrz/livesync-commonlib/node';
 import {
   decrypt as decryptHkdf,
   HKDF_ENCRYPTED_PREFIX,
@@ -25,14 +27,8 @@ import type { CouchDbDocument } from './inspector.js';
 
 export { EntryTypes, NoteTypes, E2EEAlgorithms, path2id_base, id2path_base };
 
-// Named wrappers so later domain path-policy never imports Commonlib 0.1.21.
-export function shouldBeIgnored(filename: string): boolean {
-  return commonlibShouldBeIgnored(filename);
-}
-
-export function validateStoragePath(storagePath: string, allowRoot?: boolean): string {
-  return commonlibValidateStoragePath(storagePath, allowRoot);
-}
+// Named re-exports from @vrtmrz/livesync-commonlib 0.1.21. Domain path-policy must import only these names.
+export { validateStoragePath, shouldBeIgnored, FlagFilesOriginal, FlagFilesHumanReadable };
 
 const ENCRYPTED_META_PREFIX = '/\\:';
 const ENCRYPT_OLD_HEADER = '%';
