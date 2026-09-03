@@ -10,4 +10,6 @@ export * from './livesync/inspector.js';
 export * from './livesync/zero-mutation.js';
 export * from './livesync/negotiation.js';
 export * from './livesync/syncinfo.js';
+export * from './storage/sqlite.js';
+export * from './storage/admission-repo.js';
 export * from './cli/index.js';
