@@ -640,20 +640,20 @@ No passphrase, Authorization, or plaintext file body columns.
 | A2 | Phase 2 may add `CONFLICT` exit code `8` without breaking Phase 1 tests that only assert 0–7. | Outcomes | If an existing test iterates all `EXIT_CODES` keys, update it. |
 | A3 | `vault.dedicated` default `false` is the correct operator default (empty vault required). | Config | Operators with a pre-created empty dataset still pass; non-empty vaults need the flag. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should a single unresolved conflict fail the whole pull or only that path?**
    - What we know: Success criterion 3 requires a blocking diagnostic; Phase 3 owns resume.
    - What's unclear: Whether other valid files may still be applied in the same apply run.
-   - Recommendation: **Fail-closed for apply** — if any `block` action exists after planning, apply nothing and exit `CONFLICT` or `CORRUPTION` as appropriate. Dry-run still lists the full plan. This avoids a half-materialized vault that Phase 3 would have to resume.
+   - RESOLVED: Fail-closed for apply — if any `block` action exists after planning, apply nothing and exit `CONFLICT` or `CORRUPTION` as appropriate. Dry-run still lists the full plan. This avoids a half-materialized vault that Phase 3 would have to resume.
 
 2. **How much legacy `notes` (inline `data`) vs chunked `plain`/`newnote` must fixtures cover?**
    - What we know: `NoteTypes` includes `notes`, `newnote`, `plain`.
-   - Recommendation: Characterization fixtures for all three; integration seeds at least `plain` text and `newnote` binary, plus one `notes` legacy body.
+   - RESOLVED: Characterization fixtures for all three; integration seeds at least `plain` text and `newnote` binary, plus one `notes` legacy body.
 
 3. **Obfuscation passphrase vs E2EE passphrase**
    - What we know: DFM options have both `passphrase` and `obfuscatePassphrase`. Phase 1 config has a single `encryption.passphrase`.
-   - Recommendation: Use the same resolved `encryptionPassphrase` for both decrypt and `path2id_base` obfuscation unless a future config key is added. Document this in the pull report's adopted tweaks.
+   - RESOLVED: Use the same resolved `encryptionPassphrase` for both decrypt and `path2id_base` obfuscation unless a future config key is added. Document this in the pull report's adopted tweaks.
 
 ## Environment Availability
 
