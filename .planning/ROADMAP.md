@@ -49,12 +49,12 @@ The MVP advances through six guarded vertical slices: establish structurally rea
   4. User's files are protected from traversal, absolute paths, unsafe symlinks, reserved state paths, and filename-case collisions, and valid content is staged, flushed, atomically installed where supported, and read back before acceptance.
   5. User can verify that local provenance records the exact remote revision for each visible file only after its bytes are durably reflected.
 
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Tracer: pull --dry-run and one-file empty-vault apply for a legacy notes document, plus tweak adoption and CONFLICT exit 8
+- [x] 02-01-PLAN.md — Tracer: pull --dry-run and one-file empty-vault apply for a legacy notes document, plus tweak adoption and CONFLICT exit 8
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -138,7 +138,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Guarded Read-Only Admission | 3/3 | Complete    | 2026-09-03 |
-| 2. Verified Pull Materialization | 0/4 | Planned | - |
+| 2. Verified Pull Materialization | 1/4 | In Progress|  |
 | 3. Recoverable Pull Operations | 0/TBD | Not started | - |
 | 4. Explicitly Armed Bidirectional One-Shot | 0/TBD | Not started | - |
 | 5. Continuous Convergence Daemon | 0/TBD | Not started | - |
