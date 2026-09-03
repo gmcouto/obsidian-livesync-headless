@@ -91,6 +91,7 @@ export class CouchDbTestHarness {
       hashAlgorithm?: string;
       syncinfo?: string;
       sampleNotes?: Record<string, string>;
+      tweakValues?: Record<string, unknown>;
     }
   ): Promise<void> {
     // 1. Versioning doc
@@ -105,6 +106,7 @@ export class CouchDbTestHarness {
         PREFERRED: {
           hashAlg: options?.hashAlgorithm ?? 'sha256',
           customChunkSize: 100,
+          ...options?.tweakValues,
         },
       },
     });
@@ -157,6 +159,107 @@ export class CouchDbTestHarness {
       mtime: Date.now(),
     });
     return { id, rev };
+  }
+
+  async seedChunkedPlainNote(
+    dbName: string,
+    relativePath: string,
+    body: string
+  ): Promise<{ id: string; rev: string; byteLength: number; children: string[] }> {
+    const { path2id_base } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/path'
+    );
+    const mid = Math.max(1, Math.floor(body.length / 2));
+    const parts = [body.slice(0, mid), body.slice(mid)];
+    const children: string[] = [];
+    for (const [index, part] of parts.entries()) {
+      const chunkId = `h:plain-${relativePath.replace(/[^A-Za-z0-9]/g, '')}-${index}`;
+      await this.putDocument(dbName, chunkId, {
+        type: 'leaf',
+        data: part,
+      });
+      children.push(chunkId);
+    }
+
+    const id = String(await path2id_base(relativePath, false, true));
+    const byteLength = new TextEncoder().encode(body).byteLength;
+    const { rev } = await this.putDocument(dbName, id, {
+      type: 'plain',
+      path: relativePath,
+      children,
+      size: byteLength,
+      deleted: false,
+      mtime: Date.now(),
+    });
+    return { id, rev, byteLength, children };
+  }
+
+  async seedNewnoteBinary(
+    dbName: string,
+    relativePath: string,
+    body: string
+  ): Promise<{ id: string; rev: string; byteLength: number; children: string[] }> {
+    const { path2id_base } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/path'
+    );
+    const mid = Math.max(1, Math.floor(body.length / 2));
+    const parts = [body.slice(0, mid), body.slice(mid)];
+    const children: string[] = [];
+    for (const [index, part] of parts.entries()) {
+      const chunkId = `h:newnote-${relativePath.replace(/[^A-Za-z0-9]/g, '')}-${index}`;
+      await this.putDocument(dbName, chunkId, {
+        type: 'leaf',
+        data: part,
+      });
+      children.push(chunkId);
+    }
+
+    const id = String(await path2id_base(relativePath, false, true));
+    const byteLength = new TextEncoder().encode(body).byteLength;
+    const { rev } = await this.putDocument(dbName, id, {
+      type: 'newnote',
+      path: relativePath,
+      children,
+      size: byteLength,
+      deleted: false,
+      mtime: Date.now(),
+    });
+    return { id, rev, byteLength, children };
+  }
+
+  async seedEncryptedV2Note(
+    dbName: string,
+    relativePath: string,
+    body: string,
+    passphrase: string,
+    saltHex: string
+  ): Promise<{ id: string; rev: string; byteLength: number }> {
+    const { path2id_base } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/path'
+    );
+    const { encrypt: encryptHkdf } = await import('octagonal-wheels/encryption/hkdf');
+    const { hexStringToUint8Array } = await import('octagonal-wheels/binary/hex');
+
+    const saltBytes = hexStringToUint8Array(saltHex);
+    const byteLength = new TextEncoder().encode(body).byteLength;
+    const meta = JSON.stringify({
+      path: relativePath,
+      mtime: Date.now(),
+      ctime: Date.now(),
+      size: byteLength,
+    });
+    const encryptedPath = `/\\:${await encryptHkdf(meta, passphrase, saltBytes)}`;
+    const encryptedData = await encryptHkdf(body, passphrase, saltBytes);
+    const id = String(await path2id_base(relativePath, false, true));
+    const { rev } = await this.putDocument(dbName, id, {
+      type: 'notes',
+      path: encryptedPath,
+      data: encryptedData,
+      e_: true,
+      size: 0,
+      deleted: false,
+    });
+    return { id, rev, byteLength };
   }
 
   async stop(): Promise<void> {

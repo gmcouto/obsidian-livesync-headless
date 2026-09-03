@@ -37,10 +37,21 @@ describe('CLI Pull Coordinator Integration Tests', () => {
     }
   });
 
-  function writeConfigFile(dbName: string): string {
+  function writeConfigFile(
+    dbName: string,
+    encryption?: { enabled: boolean; passphrase: string }
+  ): string {
     const creds = harness.getCredentials();
     const configPath = path.join(tempDir, 'config.yaml');
     const statePath = path.join(stateDir, 'admission.sqlite');
+
+    const encryptionBlock = encryption
+      ? `
+encryption:
+  enabled: ${encryption.enabled}
+  passphrase: ${encryption.passphrase}
+`
+      : '';
 
     const content = `
 remote:
@@ -52,6 +63,7 @@ vault:
   path: ${vaultDir}
 state:
   path: ${statePath}
+${encryptionBlock}
 `;
     fs.writeFileSync(configPath, content, 'utf8');
     return configPath;
@@ -152,5 +164,103 @@ state:
     const postJson = await snapshotRemote(dbName);
     expect(preJson.update_seq).toBe(postJson.update_seq);
     expect(preJson.doc_count).toBe(postJson.doc_count);
+  });
+
+  it('dry-run lists encrypted V2 notes, chunked plain, and newnote as create with byteLength', async () => {
+    const { createPBKDF2Salt } = await import('octagonal-wheels/encryption/hkdf');
+    const { uint8ArrayToHexString } = await import('octagonal-wheels/binary/hex');
+    const passphrase = 'correct-e2ee-passphrase';
+    const saltHex = uint8ArrayToHexString(createPBKDF2Salt());
+    const dbName = 'pull-dry-run-encrypted-chunked';
+    await harness.createDatabase(dbName);
+    await harness.seedLiveSyncData(dbName, {
+      version: 12,
+      locked: false,
+      pbkdf2salt: saltHex,
+      tweakValues: { encrypt: true },
+    });
+
+    const encryptedBody = '# Encrypted welcome\n';
+    const plainBody = 'Hello chunked plain world';
+    const binaryBody = 'BIN-DATA-PAYLOAD';
+    const encrypted = await harness.seedEncryptedV2Note(
+      dbName,
+      'Secret.md',
+      encryptedBody,
+      passphrase,
+      saltHex
+    );
+    const plain = await harness.seedChunkedPlainNote(dbName, 'Plain.md', plainBody);
+    const binary = await harness.seedNewnoteBinary(dbName, 'Photo.bin', binaryBody);
+
+    const configPath = writeConfigFile(dbName, { enabled: true, passphrase });
+    let output = '';
+    const exitCode = await runPullCommand({
+      configPath,
+      dryRun: true,
+      json: true,
+      stdout: (msg) => {
+        output += msg;
+      },
+    });
+
+    expect(exitCode).toBe(EXIT_CODES.SUCCESS);
+    const report = JSON.parse(output.trim());
+    const creates = report.actions.filter((action: { kind: string }) => action.kind === 'create');
+    expect(creates).toHaveLength(3);
+    expect(creates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'create',
+          path: 'Secret.md',
+          byteLength: encrypted.byteLength,
+        }),
+        expect.objectContaining({
+          kind: 'create',
+          path: 'Plain.md',
+          byteLength: plain.byteLength,
+        }),
+        expect.objectContaining({
+          kind: 'create',
+          path: 'Photo.bin',
+          byteLength: binary.byteLength,
+        }),
+      ])
+    );
+    expect(fs.readdirSync(vaultDir)).toEqual([]);
+  });
+
+  it('wrong-passphrase dry-run exits 2 or 7 with a block and writes zero vault files', async () => {
+    const { createPBKDF2Salt } = await import('octagonal-wheels/encryption/hkdf');
+    const { uint8ArrayToHexString } = await import('octagonal-wheels/binary/hex');
+    const passphrase = 'correct-e2ee-passphrase';
+    const saltHex = uint8ArrayToHexString(createPBKDF2Salt());
+    const dbName = 'pull-dry-run-wrong-pass';
+    await harness.createDatabase(dbName);
+    await harness.seedLiveSyncData(dbName, {
+      version: 12,
+      locked: false,
+      pbkdf2salt: saltHex,
+      tweakValues: { encrypt: true },
+    });
+    await harness.seedEncryptedV2Note(dbName, 'Secret.md', '# secret\n', passphrase, saltHex);
+
+    const configPath = writeConfigFile(dbName, { enabled: true, passphrase: 'wrong-passphrase' });
+    let output = '';
+    const exitCode = await runPullCommand({
+      configPath,
+      dryRun: true,
+      json: true,
+      stdout: (msg) => {
+        output += msg;
+      },
+    });
+
+    expect([EXIT_CODES.AUTHENTICATION_ERROR, EXIT_CODES.CORRUPTION]).toContain(exitCode);
+    const report = JSON.parse(output.trim());
+    expect(report.blockers.length).toBeGreaterThan(0);
+    expect(report.actions.some((action: { kind: string }) => action.kind === 'create')).toBe(false);
+    expect(fs.readdirSync(vaultDir)).toEqual([]);
+    expect(fs.existsSync(path.join(vaultDir, 'Secret.md'))).toBe(false);
   });
 });

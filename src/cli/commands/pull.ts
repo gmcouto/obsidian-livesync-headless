@@ -25,14 +25,16 @@ import {
   computeFingerprint,
   type NegotiationResult,
 } from '../../livesync/negotiation.js';
-import { inventoryRemoteDocuments } from '../../livesync/inventory.js';
+import { createChunkFetcher, inventoryRemoteDocuments } from '../../livesync/inventory.js';
 import {
   decodeNoteLeaf,
   isNoteType,
   isReservedChunkId,
+  type DecodeOptions,
 } from '../../livesync/decode-adapter.js';
 import {
   buildPullPlan,
+  observationFromDecodeFailure,
   serializePullActions,
   type PullAction,
   type PullObservation,
@@ -132,9 +134,35 @@ async function vaultIsEmpty(vaultRoot: string): Promise<{ ok: true } | { ok: fal
   }
 }
 
+function decodeOptionsFromAdmission(
+  negotiatedSettings: Record<string, unknown>,
+  preferredTweaks: Record<string, unknown>,
+  encryptionPassphrase: string | undefined,
+  pbkdf2salt: string | undefined
+): DecodeOptions {
+  const encrypt = Boolean(negotiatedSettings.encrypt ?? preferredTweaks.encrypt);
+  const algorithm =
+    typeof negotiatedSettings.E2EEAlgorithm === 'string'
+      ? negotiatedSettings.E2EEAlgorithm
+      : typeof preferredTweaks.E2EEAlgorithm === 'string'
+        ? preferredTweaks.E2EEAlgorithm
+        : encrypt
+          ? 'v2'
+          : undefined;
+
+  return {
+    handleFilenameCaseSensitive: Boolean(negotiatedSettings.handleFilenameCaseSensitive),
+    usePathObfuscation: Boolean(negotiatedSettings.usePathObfuscation),
+    useDynamicIterationCount: Boolean(negotiatedSettings.useDynamicIterationCount),
+    encryptionPassphrase,
+    algorithm,
+    pbkdf2salt,
+  };
+}
+
 async function observationsFromInventory(
   inventory: Awaited<ReturnType<typeof inventoryRemoteDocuments>>,
-  handleFilenameCaseSensitive: boolean
+  decodeOptions: DecodeOptions
 ): Promise<PullObservation[]> {
   const observations: PullObservation[] = [];
 
@@ -176,19 +204,13 @@ async function observationsFromInventory(
       continue;
     }
 
-    const decoded = await decodeNoteLeaf(doc, { handleFilenameCaseSensitive });
+    const decoded = await decodeNoteLeaf(doc, decodeOptions);
     if (!decoded.ok) {
       if (decoded.code === 'IGNORED') {
         observations.push({ kind: 'ignored', path: decoded.path ?? doc._id });
         continue;
       }
-      observations.push({
-        kind: 'block',
-        id: decoded.id,
-        path: decoded.path,
-        code: decoded.code,
-        message: decoded.message,
-      });
+      observations.push(observationFromDecodeFailure(decoded));
       continue;
     }
 
@@ -299,13 +321,29 @@ export async function runPullCommand(options: PullCommandOptions): Promise<numbe
         databaseName,
         credentials
       );
-      const handleFilenameCaseSensitive = Boolean(
-        negotiation.negotiatedSettings.handleFilenameCaseSensitive
+      const authHeader =
+        credentials?.username || credentials?.password
+          ? `Basic ${Buffer.from(`${credentials.username ?? ''}:${credentials.password ?? ''}`).toString('base64')}`
+          : undefined;
+      const fetchChunk = createChunkFetcher(
+        guardedFetch,
+        allowedBaseUrl,
+        databaseName,
+        authHeader
       );
-      const observations = await observationsFromInventory(
-        inventory,
-        handleFilenameCaseSensitive
+      const preferredTweaks = probeResult.milestoneDoc?.tweak_values?.PREFERRED ?? {};
+      const decodeOptions = decodeOptionsFromAdmission(
+        negotiation.negotiatedSettings,
+        preferredTweaks,
+        config.resolvedSecrets.encryptionPassphrase,
+        typeof probeResult.syncParamsDoc?.pbkdf2salt === 'string'
+          ? probeResult.syncParamsDoc.pbkdf2salt
+          : undefined
       );
+      const observations = await observationsFromInventory(inventory, {
+        ...decodeOptions,
+        fetchChunk,
+      });
       actions = buildPullPlan(observations);
 
       const blockActions = actions.filter((action) => action.kind === 'block');

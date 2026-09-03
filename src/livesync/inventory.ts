@@ -5,6 +5,15 @@ import {
 } from './inspector.js';
 import { isReservedChunkId } from './decode-adapter.js';
 
+export function createChunkFetcher(
+  guardedFetch: typeof globalThis.fetch,
+  baseUrl: URL,
+  databaseName: string,
+  authHeader?: string
+): (id: string) => Promise<CouchDbDocument | null> {
+  return (id) => fetchDocumentIfExists<CouchDbDocument>(guardedFetch, baseUrl, databaseName, id, authHeader);
+}
+
 const ALL_DOCS_PAGE_SIZE = 100;
 
 export interface InventoryCredentials {
