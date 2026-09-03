@@ -28,7 +28,7 @@
 
 ### Pull and Local Reflection
 
-- [ ] **PULL-01**: User can run a finite pull-only dry-run that reads and decodes remote state and reports planned local actions without mutating CouchDB, the vault, or synchronization provenance.
+- [x] **PULL-01**: User can run a finite pull-only dry-run that reads and decodes remote state and reports planned local actions without mutating CouchDB, the vault, or synchronization provenance.
 - [ ] **PULL-02**: User can apply a verified pull to an empty or explicitly dedicated vault only after all content required for each file has been fetched, decrypted, assembled, and validated.
 - [ ] **PULL-03**: User's created or replaced local files are staged on the same filesystem, flushed, atomically installed where supported, and read back before synchronization state is committed.
 - [ ] **PULL-04**: User's displaced or remotely deleted local files are moved to collision-safe recoverable quarantine, and the operation stops before removal when recovery cannot be guaranteed.
@@ -135,7 +135,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-05 | Phase 2 | Pending |
 | COMP-06 | Phase 2 | Pending |
 | COMP-07 | Phase 6 | Pending |
-| PULL-01 | Phase 2 | Pending |
+| PULL-01 | Phase 2 | Complete |
 | PULL-02 | Phase 2 | Pending |
 | PULL-03 | Phase 2 | Pending |
 | PULL-04 | Phase 3 | Pending |
