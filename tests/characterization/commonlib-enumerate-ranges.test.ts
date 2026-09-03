@@ -3,7 +3,7 @@ import {
   PREFIX_CHUNK,
   PREFIX_ENCRYPTED_CHUNK,
   PREFIX_OBFUSCATED,
-} from '@vrtmrz/livesync-commonlib/compat/common/models/shared.const';
+} from '@vrtmrz/livesync-commonlib/compat/common/types';
 import { classifyDocumentId, isReservedChunkId } from '../../src/livesync/decode-adapter.js';
 
 describe('Commonlib reserved-id enumerate ranges (0.1.21)', () => {
