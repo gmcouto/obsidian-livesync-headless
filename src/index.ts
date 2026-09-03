@@ -8,4 +8,6 @@ export * from './config/secrets.js';
 export * from './config/loader.js';
 export * from './livesync/inspector.js';
 export * from './livesync/zero-mutation.js';
+export * from './livesync/negotiation.js';
+export * from './livesync/syncinfo.js';
 export * from './cli/index.js';
