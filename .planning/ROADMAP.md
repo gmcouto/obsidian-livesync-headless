@@ -52,9 +52,20 @@ The MVP advances through six guarded vertical slices: establish structurally rea
 **Plans:** 4 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 02-01-PLAN.md — Tracer: pull --dry-run and one-file empty-vault apply for a legacy notes document, plus tweak adoption and CONFLICT exit 8
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 02-02-PLAN.md — Decode encrypted V1/V2, obfuscated paths, chunked plain/newnote, and validation blockers
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 02-03-PLAN.md — All-leaf conflict blocks, path safety, and empty-or-dedicated vault preflight
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 02-04-PLAN.md — Capability-gated atomic apply, provenance-after-verify, and fail-closed integration
 
 ### Phase 3: Recoverable Pull Operations
