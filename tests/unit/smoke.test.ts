@@ -13,6 +13,7 @@ describe('Walking Skeleton Smoke Tests', () => {
     expect(EXIT_CODES.TRANSIENT_OUTAGE).toBe(5);
     expect(EXIT_CODES.MUTATION_VIOLATION).toBe(6);
     expect(EXIT_CODES.CORRUPTION).toBe(7);
+    expect(EXIT_CODES.CONFLICT).toBe(8);
 
     const categories: OutcomeCategory[] = [
       'SUCCESS',
@@ -23,8 +24,9 @@ describe('Walking Skeleton Smoke Tests', () => {
       'TRANSIENT_OUTAGE',
       'MUTATION_VIOLATION',
       'CORRUPTION',
+      'CONFLICT',
     ];
-    expect(categories.length).toBe(8);
+    expect(categories.length).toBe(9);
   });
 
   it('parses CLI arguments correctly', () => {
@@ -42,6 +44,11 @@ describe('Walking Skeleton Smoke Tests', () => {
 
     const parsed4 = parseCliArgs(['--help']);
     expect(parsed4.options.help).toBe(true);
+
+    const parsedPull = parseCliArgs(['pull', '--dry-run', '-c', 'file.yaml']);
+    expect(parsedPull.command).toBe('pull');
+    expect(parsedPull.options.dryRun).toBe(true);
+    expect(parsedPull.options.config).toBe('file.yaml');
   });
 
   it('outputs help text when --help is supplied', async () => {

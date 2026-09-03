@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 export function runMigrations(db: DatabaseSync): void {
   db.exec(`
@@ -40,6 +40,25 @@ export function runMigrations(db: DatabaseSync): void {
       'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)'
     );
     stmt.run(1, new Date().toISOString());
+  }
+
+  // Migration 002: file_provenance table (exact remote revision after verified reflection)
+  if (!appliedVersions.has(2)) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS file_provenance (
+        path TEXT PRIMARY KEY,
+        remote_revision TEXT NOT NULL,
+        content_sha256 TEXT NOT NULL,
+        observed_mtime INTEGER,
+        remote_fingerprint TEXT NOT NULL,
+        reflected_at TEXT NOT NULL
+      );
+    `);
+
+    const stmt = db.prepare(
+      'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)'
+    );
+    stmt.run(2, new Date().toISOString());
   }
 }
 

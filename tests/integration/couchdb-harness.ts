@@ -138,6 +138,27 @@ export class CouchDbTestHarness {
     }
   }
 
+  async seedLegacyNote(
+    dbName: string,
+    relativePath: string,
+    body: string
+  ): Promise<{ id: string; rev: string }> {
+    const { path2id_base } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/path'
+    );
+    const id = String(await path2id_base(relativePath, false, true));
+    const size = new TextEncoder().encode(body).byteLength;
+    const { rev } = await this.putDocument(dbName, id, {
+      type: 'notes',
+      path: relativePath,
+      data: body,
+      size,
+      deleted: false,
+      mtime: Date.now(),
+    });
+    return { id, rev };
+  }
+
   async stop(): Promise<void> {
     if (this.container) {
       await this.container.stop();

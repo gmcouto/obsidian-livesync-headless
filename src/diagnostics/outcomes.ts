@@ -7,6 +7,7 @@ export const OutcomeCategory = {
   TRANSIENT_OUTAGE: 'TRANSIENT_OUTAGE',
   MUTATION_VIOLATION: 'MUTATION_VIOLATION',
   CORRUPTION: 'CORRUPTION',
+  CONFLICT: 'CONFLICT',
 } as const;
 
 export type OutcomeCategory = (typeof OutcomeCategory)[keyof typeof OutcomeCategory];
@@ -20,4 +21,5 @@ export const EXIT_CODES: Record<OutcomeCategory, number> = {
   TRANSIENT_OUTAGE: 5,
   MUTATION_VIOLATION: 6,
   CORRUPTION: 7,
+  CONFLICT: 8,
 };

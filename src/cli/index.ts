@@ -3,10 +3,12 @@ import { logger } from '../diagnostics/logger.js';
 import { EXIT_CODES } from '../diagnostics/outcomes.js';
 import { defaultRedactor } from '../security/redaction.js';
 import { runInspectCommand } from './commands/inspect.js';
+import { runPullCommand } from './commands/pull.js';
 
 export interface CliOptions {
   config?: string;
   json: boolean;
+  dryRun: boolean;
   help: boolean;
   version: boolean;
 }
@@ -20,10 +22,12 @@ export const CLI_HELP = `obsidian-livesync-headless [command] [options]
 
 Commands:
   inspect                     Safely inspect and negotiate compatibility with CouchDB
+  pull                        Materialize verified remote LiveSync files into a vault
 
 Options:
   -c, --config <path>         Path to YAML configuration file
       --json                  Output structured JSON Lines report
+      --dry-run               Preview pull actions without writing vault or provenance
   -h, --help                  Show help and usage information
   -v, --version               Show version information
 `;
@@ -39,6 +43,10 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): { command?
         short: 'c',
       },
       json: {
+        type: 'boolean',
+        default: false,
+      },
+      'dry-run': {
         type: 'boolean',
         default: false,
       },
@@ -61,6 +69,7 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): { command?
     options: {
       config: values.config,
       json: values.json ?? false,
+      dryRun: values['dry-run'] ?? false,
       help: values.help ?? false,
       version: values.version ?? false,
     },
@@ -86,6 +95,20 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
       hasConfig: Boolean(parsed.options.config),
       json: parsed.options.json,
     });
+
+    const isPull = parsed.command === 'pull';
+    if (isPull) {
+      if (!parsed.options.config) {
+        logger.error('Missing required configuration file (--config <path>)');
+        return EXIT_CODES.CONFIG_ERROR;
+      }
+
+      return await runPullCommand({
+        configPath: parsed.options.config,
+        json: parsed.options.json,
+        dryRun: parsed.options.dryRun,
+      });
+    }
 
     const isInspect = !parsed.command || parsed.command === 'inspect';
     if (isInspect) {
