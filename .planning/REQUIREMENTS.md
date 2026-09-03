@@ -120,13 +120,64 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TBD | TBD | Pending |
+| CONF-01 | Phase 1 | Pending |
+| CONF-02 | Phase 1 | Pending |
+| CONF-03 | Phase 1 | Pending |
+| CONF-04 | Phase 1 | Pending |
+| CONF-05 | Phase 1 | Pending |
+| CONF-06 | Phase 1 | Pending |
+| CONF-07 | Phase 4 | Pending |
+| CONF-08 | Phase 4 | Pending |
+| COMP-01 | Phase 2 | Pending |
+| COMP-02 | Phase 2 | Pending |
+| COMP-03 | Phase 2 | Pending |
+| COMP-04 | Phase 2 | Pending |
+| COMP-05 | Phase 2 | Pending |
+| COMP-06 | Phase 2 | Pending |
+| COMP-07 | Phase 6 | Pending |
+| PULL-01 | Phase 2 | Pending |
+| PULL-02 | Phase 2 | Pending |
+| PULL-03 | Phase 2 | Pending |
+| PULL-04 | Phase 3 | Pending |
+| PULL-05 | Phase 2 | Pending |
+| PULL-06 | Phase 3 | Pending |
+| PULL-07 | Phase 2 | Pending |
+| PULL-08 | Phase 3 | Pending |
+| SYNC-01 | Phase 4 | Pending |
+| SYNC-02 | Phase 4 | Pending |
+| SYNC-03 | Phase 4 | Pending |
+| SYNC-04 | Phase 4 | Pending |
+| SYNC-05 | Phase 4 | Pending |
+| SYNC-06 | Phase 4 | Pending |
+| SYNC-07 | Phase 4 | Pending |
+| SYNC-08 | Phase 4 | Pending |
+| SYNC-09 | Phase 4 | Pending |
+| DAEM-01 | Phase 5 | Pending |
+| DAEM-02 | Phase 5 | Pending |
+| DAEM-03 | Phase 5 | Pending |
+| DAEM-04 | Phase 5 | Pending |
+| DAEM-05 | Phase 5 | Pending |
+| DAEM-06 | Phase 5 | Pending |
+| DAEM-07 | Phase 5 | Pending |
+| DAEM-08 | Phase 5 | Pending |
+| SAFE-01 | Phase 1 | Pending |
+| SAFE-02 | Phase 1 | Pending |
+| SAFE-03 | Phase 4 | Pending |
+| SAFE-04 | Phase 1 | Pending |
+| SAFE-05 | Phase 3 | Pending |
+| SAFE-06 | Phase 1 | Pending |
+| SAFE-07 | Phase 4 | Pending |
+| DIST-01 | Phase 6 | Pending |
+| DIST-02 | Phase 6 | Pending |
+| DIST-03 | Phase 6 | Pending |
+| DIST-04 | Phase 6 | Pending |
+| DIST-05 | Phase 6 | Pending |
 
 **Coverage:**
 - v1 requirements: 52 total
-- Mapped to phases: 0
-- Unmapped: 52 ⚠️
+- Mapped to phases: 52
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-09-03*
-*Last updated: 2026-09-03 after initial definition*
+*Last updated: 2026-09-03 after roadmap creation*
