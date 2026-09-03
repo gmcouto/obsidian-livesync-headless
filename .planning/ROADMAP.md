@@ -6,7 +6,7 @@ The MVP advances through six guarded vertical slices: establish structurally rea
 
 ## Phases
 
-- [ ] **Phase 1: Guarded Read-Only Admission** - Run the first real CLI-to-CouchDB integration while proving configuration safety, compatibility, and zero remote mutation.
+- [x] **Phase 1: Guarded Read-Only Admission** - Run the first real CLI-to-CouchDB integration while proving configuration safety, compatibility, and zero remote mutation. (completed 2026-09-03)
 - [ ] **Phase 2: Verified Pull Materialization** - Decode supported LiveSync records and safely materialize a dedicated vault without remote writes.
 - [ ] **Phase 3: Recoverable Pull Operations** - Make local reflection durable, resumable, quarantined, and repeatably idempotent before any push is allowed.
 - [ ] **Phase 4: Explicitly Armed Bidirectional One-Shot** - Converge local and remote file state once through a fresh, scope-bound write grant and preservation-first reconciliation.
@@ -29,7 +29,7 @@ The MVP advances through six guarded vertical slices: establish structurally rea
   4. User receives stable human-readable and JSON Lines compatibility results containing the remote fingerprint, negotiated-settings hash, supported capabilities, blockers, and locally adopted compatible remote settings; unsupported or future states fail closed.
   5. User receives before-and-after evidence that remote sequence and compatibility-marker revisions did not change, while the CLI exposes no remote database lifecycle or administration capability.
 
-**Plans:** TBD
+**Plans:** 3/3 plans complete
 
 - [x] 01-01-PLAN.md
 - [x] 01-02-PLAN.md
@@ -120,7 +120,7 @@ The MVP advances through six guarded vertical slices: establish structurally rea
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Guarded Read-Only Admission | 3/3 | In Progress|  |
+| 1. Guarded Read-Only Admission | 3/3 | Complete    | 2026-09-03 |
 | 2. Verified Pull Materialization | 0/TBD | Not started | - |
 | 3. Recoverable Pull Operations | 0/TBD | Not started | - |
 | 4. Explicitly Armed Bidirectional One-Shot | 0/TBD | Not started | - |

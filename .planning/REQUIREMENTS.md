@@ -7,12 +7,12 @@
 
 ### Configuration and Admission
 
-- [ ] **CONF-01**: User can select a YAML configuration file that identifies an existing CouchDB database and a destination vault directory.
-- [ ] **CONF-02**: User can supply CouchDB credentials and encryption passphrases through environment-backed secret references without storing secret values in tracked configuration.
-- [ ] **CONF-03**: User receives a validation error before filesystem or network side effects when configuration is missing, malformed, internally inconsistent, or references an unsafe destination.
-- [ ] **CONF-04**: User can inspect connectivity, database identity, LiveSync version state, locks, security material, preferred tweaks, and representative records through a structurally read-only command.
-- [ ] **CONF-05**: User can pull and adopt compatible remote LiveSync settings locally while incompatible, unknown, locked, or future-version settings prevent synchronization writes.
-- [ ] **CONF-06**: User receives a stable compatibility report that records the remote fingerprint, negotiated-settings hash, supported and unsupported capabilities, and any blockers.
+- [x] **CONF-01**: User can select a YAML configuration file that identifies an existing CouchDB database and a destination vault directory.
+- [x] **CONF-02**: User can supply CouchDB credentials and encryption passphrases through environment-backed secret references without storing secret values in tracked configuration.
+- [x] **CONF-03**: User receives a validation error before filesystem or network side effects when configuration is missing, malformed, internally inconsistent, or references an unsafe destination.
+- [x] **CONF-04**: User can inspect connectivity, database identity, LiveSync version state, locks, security material, preferred tweaks, and representative records through a structurally read-only command.
+- [x] **CONF-05**: User can pull and adopt compatible remote LiveSync settings locally while incompatible, unknown, locked, or future-version settings prevent synchronization writes.
+- [x] **CONF-06**: User receives a stable compatibility report that records the remote fingerprint, negotiated-settings hash, supported and unsupported capabilities, and any blockers.
 - [ ] **CONF-07**: User can explicitly arm write access only after a successful verified bootstrap, with the grant bound to the remote fingerprint, vault root, settings hash, compatibility-library version, and bootstrap generation.
 - [ ] **CONF-08**: User's write grant is revoked automatically when its bound remote identity, vault path, settings, compatibility version, or verified baseline changes.
 
@@ -62,12 +62,12 @@
 
 ### Safety and Operations
 
-- [ ] **SAFE-01**: User cannot invoke database creation, drop, reset, rebuild, overwrite, purge, compaction, garbage collection, retention changes, security changes, design/index management, or server-managed replication through the application.
-- [ ] **SAFE-02**: User's first-contact and dry-run traffic is restricted to an explicit read-only HTTP method and endpoint allowlist, with mutation attempts blocked before transport.
+- [x] **SAFE-01**: User cannot invoke database creation, drop, reset, rebuild, overwrite, purge, compaction, garbage collection, retention changes, security changes, design/index management, or server-managed replication through the application.
+- [x] **SAFE-02**: User's first-contact and dry-run traffic is restricted to an explicit read-only HTTP method and endpoint allowlist, with mutation attempts blocked before transport.
 - [ ] **SAFE-03**: User's write-capable traffic is restricted to the minimum LiveSync document operations required for armed file synchronization, with destructive and administrative endpoints denied after URL canonicalization and redirects.
-- [ ] **SAFE-04**: User's credentials, passphrases, setup URIs, authorization headers, and decrypted payloads are excluded or redacted from logs, errors, state databases, crash output, and packaged artifacts.
+- [x] **SAFE-04**: User's credentials, passphrases, setup URIs, authorization headers, and decrypted payloads are excluded or redacted from logs, errors, state databases, crash output, and packaged artifacts.
 - [ ] **SAFE-05**: User's checkpoints, exact revision provenance, admission records, write grants, operation journal, and quarantine index are stored durably outside the synchronized vault namespace.
-- [ ] **SAFE-06**: User receives human-readable and JSON Lines diagnostics with stable outcome categories and non-zero exit or health states for incompatibility, authentication failure, corruption, conflict, partial write, and transient outage.
+- [x] **SAFE-06**: User receives human-readable and JSON Lines diagnostics with stable outcome categories and non-zero exit or health states for incompatibility, authentication failure, corruption, conflict, partial write, and transient outage.
 - [ ] **SAFE-07**: User is warned that synchronization propagates changes and is not a substitute for an independent versioned backup.
 
 ### Distribution and Compatibility Gate
@@ -120,12 +120,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONF-01 | Phase 1 | Pending |
-| CONF-02 | Phase 1 | Pending |
-| CONF-03 | Phase 1 | Pending |
-| CONF-04 | Phase 1 | Pending |
-| CONF-05 | Phase 1 | Pending |
-| CONF-06 | Phase 1 | Pending |
+| CONF-01 | Phase 1 | Complete |
+| CONF-02 | Phase 1 | Complete |
+| CONF-03 | Phase 1 | Complete |
+| CONF-04 | Phase 1 | Complete |
+| CONF-05 | Phase 1 | Complete |
+| CONF-06 | Phase 1 | Complete |
 | CONF-07 | Phase 4 | Pending |
 | CONF-08 | Phase 4 | Pending |
 | COMP-01 | Phase 2 | Pending |
@@ -160,12 +160,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DAEM-06 | Phase 5 | Pending |
 | DAEM-07 | Phase 5 | Pending |
 | DAEM-08 | Phase 5 | Pending |
-| SAFE-01 | Phase 1 | Pending |
-| SAFE-02 | Phase 1 | Pending |
+| SAFE-01 | Phase 1 | Complete |
+| SAFE-02 | Phase 1 | Complete |
 | SAFE-03 | Phase 4 | Pending |
-| SAFE-04 | Phase 1 | Pending |
+| SAFE-04 | Phase 1 | Complete |
 | SAFE-05 | Phase 3 | Pending |
-| SAFE-06 | Phase 1 | Pending |
+| SAFE-06 | Phase 1 | Complete |
 | SAFE-07 | Phase 4 | Pending |
 | DIST-01 | Phase 6 | Pending |
 | DIST-02 | Phase 6 | Pending |
@@ -174,6 +174,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DIST-05 | Phase 6 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 52 total
 - Mapped to phases: 52
 - Unmapped: 0 ✓
