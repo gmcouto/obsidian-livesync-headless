@@ -4,7 +4,7 @@
 
 `obsidian-livesync-headless` is a single runnable CLI application that synchronizes a local Obsidian vault directory with an existing Self-hosted LiveSync CouchDB database. It behaves as a compatible headless LiveSync client: one-shot operation brings both sides into sync, while daemon operation continuously watches local and remote changes and applies them safely.
 
-The initial release supports only the LiveSync synchronization preset. Existing Obsidian LiveSync clients and their database content define the compatibility standard.
+The initial release supports only file synchronization through the LiveSync synchronization preset. Existing Obsidian LiveSync clients and their database content define the compatibility standard, but Obsidian UI behavior and plugin-management features are not part of the product.
 
 ## Core Value
 
@@ -31,6 +31,8 @@ Reliably synchronize an Obsidian vault without Obsidian while preserving every u
 
 - Synchronization presets other than LiveSync — v1 targets one compatibility contract.
 - A graphical user interface or Obsidian plugin — this product is deliberately headless and CLI-first.
+- Obsidian plugin installation, enablement, upgrades, or lifecycle management — the application synchronizes files rather than managing Obsidian.
+- LiveSync customisation-sync management for Obsidian plugins, themes, snippets, or UI configuration — v1 is limited to vault file synchronization.
 - Creating, dropping, resetting, purging, compacting, rebuilding, or garbage-collecting a remote database — remote maintenance is explicitly prohibited.
 - Treating locally generated state as a replacement standard for existing LiveSync data — Obsidian LiveSync clients remain authoritative for compatibility.
 - Object Storage and peer-to-peer remote types — v1 targets the CouchDB-backed LiveSync path.
@@ -57,7 +59,8 @@ Logical file deletion is distinct from destructive database deletion. Normal fil
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Target full LiveSync interoperability | Existing Obsidian clients and databases are the compatibility authority | — Pending |
+| Target full LiveSync file-data interoperability | Existing Obsidian clients and databases are the compatibility authority for synchronized files | — Pending |
+| Exclude Obsidian UI and plugin management | The product's objective is headless file synchronization, not recreating Obsidian | — Pending |
 | Synchronize logical deletion revisions | Preserve normal deletion semantics without erasing database history | — Pending |
 | Prohibit destructive database operations | The application must never risk dropping, clearing, purging, or compacting user data | — Pending |
 | Ship a single CLI executable | Enables headless and unattended use with minimal deployment overhead | — Pending |
@@ -82,4 +85,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-03 after initialization*
+*Last updated: 2026-09-03 after scope clarification*

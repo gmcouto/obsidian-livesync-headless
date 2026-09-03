@@ -1,0 +1,23 @@
+# Secrets and machine-local configuration
+.env
+.env.*
+!.env.example
+config.local.*
+secrets.*
+
+# Synchronized vaults and runtime state
+/vault/
+/data/
+/state/
+
+# Build and dependency outputs
+/dist/
+/target/
+/node_modules/
+*.log
+
+# Editor and operating-system noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
