@@ -1,8 +1,8 @@
 ---
 phase: "1"
 slug: "guarded-read-only-admission"
-status: draft
-nyquist_compliant: false
+status: ready
+nyquist_compliant: true
 wave_0_complete: false
 created: "2026-09-03"
 ---
@@ -18,7 +18,7 @@ created: "2026-09-03"
 | Property | Value |
 |----------|-------|
 | **Framework** | Vitest 4.1.11 |
-| **Config file** | `vitest.config.ts` (Wave 0 installs) |
+| **Config file** | `vitest.config.ts` (Wave 1 Plan 01 installs) |
 | **Quick run command** | `npx vitest run tests/unit` |
 | **Full suite command** | `npx vitest run` |
 | **Estimated runtime** | ~15 seconds (unit) / ~45 seconds (full integration) |
@@ -38,16 +38,14 @@ created: "2026-09-03"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 01-01-01 | 01 | 1 | CONF-01 | — | Parse YAML configuration with db URL, name, and vault root | unit | `npx vitest run tests/unit/config.test.ts` | ❌ W0 | ⬜ pending |
-| 01-01-02 | 01 | 1 | CONF-02 | T-01-01 | Resolve secrets via env vars and separate secret files without committing to config | unit | `npx vitest run tests/unit/config.test.ts` | ❌ W0 | ⬜ pending |
-| 01-01-03 | 01 | 1 | CONF-03 | T-01-02 | Reject unsafe vault paths (traversal, root, overlapping state) before side effects | unit | `npx vitest run tests/unit/config.test.ts` | ❌ W0 | ⬜ pending |
-| 01-02-01 | 02 | 2 | SAFE-01 | T-01-03 | Deny database lifecycle and admin API operations (purge, compact, drop, security) | unit | `npx vitest run tests/unit/transport-guard.test.ts` | ❌ W0 | ⬜ pending |
-| 01-02-02 | 02 | 2 | SAFE-02 | T-01-04 | Restrict HTTP methods to GET/HEAD and allowlisted endpoints; block mutations | unit | `npx vitest run tests/unit/transport-guard.test.ts` | ❌ W0 | ⬜ pending |
-| 01-02-03 | 02 | 2 | SAFE-04 | T-01-05 | Redact credentials, passphrases, authorization headers, and URIs from all output and logs | unit | `npx vitest run tests/unit/redaction.test.ts` | ❌ W0 | ⬜ pending |
-| 01-03-01 | 03 | 3 | CONF-04 | — | Probe CouchDB markers, version, milestone, sync params, preferred tweaks | integration | `npx vitest run tests/integration/inspect-command.test.ts` | ❌ W0 | ⬜ pending |
-| 01-03-02 | 03 | 3 | CONF-05 | T-01-06 | Negotiate compatibility: adopt compatible remote tweaks, block on incompatible or future versions | unit & integration | `npx vitest run tests/unit/negotiation.test.ts` | ❌ W0 | ⬜ pending |
-| 01-03-03 | 03 | 3 | CONF-06 | — | Produce stable compatibility report with fingerprint, settings hash, blockers | integration | `npx vitest run tests/integration/inspect-command.test.ts` | ❌ W0 | ⬜ pending |
-| 01-03-04 | 03 | 3 | SAFE-06 | — | Emit structured diagnostics and non-zero exit codes on admission/auth/config failure | integration | `npx vitest run tests/integration/inspect-command.test.ts` | ❌ W0 | ⬜ pending |
+| 01-01-01 | 01 | 1 | — | T-01-SC | Project scaffold, TypeScript build, CLI parseArgs, leveled JSON Lines logger | unit | `npm install && npx tsc --noEmit && npx vitest run tests/unit/smoke.test.ts` | ❌ W1 | ⬜ pending |
+| 01-01-02 | 01 | 1 | SAFE-04 | T-01-03 | Redact credentials, passphrases, authorization headers, setup URIs, and error stacks | unit | `npx vitest run tests/unit/redaction.test.ts` | ❌ W1 | ⬜ pending |
+| 01-01-03 | 01 | 1 | CONF-01, CONF-02, CONF-03 | T-01-01, T-01-02 | Parse YAML, resolve secrets from env/file, reject unsafe paths (traversal, root, overlapping state) | unit | `npx vitest run tests/unit/config.test.ts` | ❌ W1 | ⬜ pending |
+| 01-02-01 | 02 | 2 | SAFE-01, SAFE-02 | T-02-02, T-02-03 | Restrict HTTP methods to GET/HEAD and allowlist endpoints; block mutations and admin paths | unit | `npx vitest run tests/unit/transport-guard.test.ts` | ❌ W2 | ⬜ pending |
+| 01-02-02 | 02 | 2 | CONF-04 | T-02-01 | Probe CouchDB markers via pure read queries; assert zero update_seq and rev mutation | unit & integration | `npx vitest run tests/unit/inspector.test.ts tests/integration/zero-mutation.test.ts` | ❌ W2 | ⬜ pending |
+| 01-03-01 | 03 | 3 | CONF-05 | T-03-01, T-03-03 | Evaluate version (<=12), lock, and tweaks; adopt compatible tweaks; authenticate syncinfo | unit & char | `npx vitest run tests/unit/negotiation.test.ts tests/characterization/commonlib-crypto.test.ts` | ❌ W3 | ⬜ pending |
+| 01-03-02 | 03 | 3 | CONF-06 | T-03-02 | Persist remote admission record in SQLite outside vault without storing credentials | unit | `npx vitest run tests/unit/admission-repo.test.ts` | ❌ W3 | ⬜ pending |
+| 01-03-03 | 03 | 3 | CONF-06, SAFE-06 | T-03-04, T-03-05 | Run inspect command end-to-end; emit human and JSON Lines report; exit with typed code | integration | `npx vitest run tests/integration/inspect-command.test.ts` | ❌ W3 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
