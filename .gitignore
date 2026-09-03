@@ -21,3 +21,6 @@ secrets.*
 Thumbs.db
 .idea/
 .vscode/
+
+# Ephemeral GSD research cache
+.planning/research/.cache/
