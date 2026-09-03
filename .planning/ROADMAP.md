@@ -33,7 +33,7 @@ The MVP advances through six guarded vertical slices: establish structurally rea
 
 - [x] 01-01-PLAN.md
 - [x] 01-02-PLAN.md
-- [ ] 01-03-PLAN.md
+- [x] 01-03-PLAN.md
 
 ### Phase 2: Verified Pull Materialization
 
@@ -120,7 +120,7 @@ The MVP advances through six guarded vertical slices: establish structurally rea
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Guarded Read-Only Admission | 2/3 | In Progress|  |
+| 1. Guarded Read-Only Admission | 3/3 | In Progress|  |
 | 2. Verified Pull Materialization | 0/TBD | Not started | - |
 | 3. Recoverable Pull Operations | 0/TBD | Not started | - |
 | 4. Explicitly Armed Bidirectional One-Shot | 0/TBD | Not started | - |
