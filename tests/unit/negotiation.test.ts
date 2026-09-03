@@ -135,6 +135,33 @@ describe('LiveSync Compatibility Negotiation', () => {
     expect(result.blockers.some((b) => b.code === 'UNKNOWN_REMOTE_SETTING')).toBe(true);
   });
 
+  it('adopts remote path, case, and dynamic-iteration tweaks for pull', () => {
+    const probe: RemoteProbeResult = {
+      ...baseProbeResult,
+      milestoneDoc: {
+        ...baseProbeResult.milestoneDoc!,
+        tweak_values: {
+          PREFERRED: {
+            ...baseProbeResult.milestoneDoc!.tweak_values!.PREFERRED,
+            usePathObfuscation: true,
+            useDynamicIterationCount: true,
+            handleFilenameCaseSensitive: true,
+          },
+        },
+      },
+    };
+
+    const result = negotiateCompatibility(probe, localConfig);
+    expect(result.admitted).toBe(true);
+    expect(result.adoptedTweaks.usePathObfuscation).toBe(true);
+    expect(result.adoptedTweaks.useDynamicIterationCount).toBe(true);
+    expect(result.adoptedTweaks.handleFilenameCaseSensitive).toBe(true);
+    expect(result.negotiatedSettings.usePathObfuscation).toBe(true);
+    expect(result.negotiatedSettings.useDynamicIterationCount).toBe(true);
+    expect(result.negotiatedSettings.handleFilenameCaseSensitive).toBe(true);
+    expect(result.blockers.some((b) => b.code === 'INCOMPATIBLE_TWEAK')).toBe(false);
+  });
+
   it('detects incompatible difference in encryption setting', () => {
     const probe: RemoteProbeResult = {
       ...baseProbeResult,
