@@ -173,7 +173,7 @@ Each task was committed atomically:
 - **Issue:** The unanchored `secrets.*` pattern in `.gitignore` matched `src/config/secrets.ts`, preventing it from being staged.
 - **Fix:** Changed `secrets.*` and `config.local.*` in `.gitignore` to `/secrets.*` and `/config.local.*`.
 - **Files modified:** `.gitignore`
-- **Verification:** `git add src/config/secrets.ts` succeeded without warning or force flag.
+- **Verification:** Staging `src/config/secrets.ts` succeeded without warning or force flag.
 - **Committed in:** `fd9318c`
 
 ---
