@@ -117,14 +117,9 @@ export function negotiateCompatibility(
           });
         }
       } else {
-        // Other incompatible tweaks: e.g. usePathObfuscation, useDynamicIterationCount, handleFilenameCaseSensitive
-        if (remoteVal) {
-          blockers.push({
-            code: 'INCOMPATIBLE_TWEAK',
-            message: `Incompatible difference for '${key}': remote=${remoteVal}`,
-            suggestion: `The '${key}' LiveSync tweak is not currently supported in this headless release`,
-          });
-        }
+        // Adopt remote-incompatible tweaks for pull decode (path/case/dynamic-iteration).
+        adoptedTweaks[key] = remoteVal;
+        negotiatedSettings[key] = remoteVal;
       }
     } else if (CompatibleButLossyChanges.includes(key as any)) {
       adoptedTweaks[key] = remoteVal;
