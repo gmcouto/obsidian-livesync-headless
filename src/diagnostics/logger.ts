@@ -1,3 +1,5 @@
+import { defaultRedactor, SecretRedactor } from '../security/redaction.js';
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export interface Redactor {
@@ -21,13 +23,14 @@ const LEVEL_SEVERITY: Record<LogLevel, number> = {
 
 export class Logger {
   private minLevel: LogLevel = 'info';
-  private redactor: Redactor | null = null;
+  private redactor: Redactor | null = defaultRedactor;
   private destination: (line: string) => void = (line: string) => {
     process.stderr.write(line + '\n');
   };
 
-  constructor(minLevel: LogLevel = 'info') {
+  constructor(minLevel: LogLevel = 'info', redactor: Redactor | null = defaultRedactor) {
     this.minLevel = minLevel;
+    this.redactor = redactor;
   }
 
   setLevel(level: LogLevel): void {
@@ -40,6 +43,10 @@ export class Logger {
 
   setRedactor(redactor: Redactor | null): void {
     this.redactor = redactor;
+  }
+
+  getRedactor(): Redactor | null {
+    return this.redactor;
   }
 
   setDestination(destination: (line: string) => void): void {
@@ -93,4 +100,4 @@ export class Logger {
   }
 }
 
-export const logger = new Logger('info');
+export const logger = new Logger('info', defaultRedactor);
