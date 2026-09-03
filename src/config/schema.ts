@@ -36,6 +36,7 @@ export const CouchDbConfigSchema = z
 export const VaultConfigSchema = z
   .object({
     path: z.string().min(1),
+    dedicated: z.boolean().default(false),
   })
   .strict();
 

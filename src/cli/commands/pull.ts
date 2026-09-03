@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readdir, stat } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { loadConfig, ConfigValidationError } from '../../config/loader.js';
 import { SecretRedactor, defaultRedactor } from '../../security/redaction.js';
@@ -40,6 +40,12 @@ import {
   type PullObservation,
 } from '../../domain/pull-plan.js';
 import { installAtomically } from '../../filesystem/atomic-reflector.js';
+import { preflightVault, type VaultPreflightResult } from '../../filesystem/vault-preflight.js';
+import {
+  assertSafeVaultRelativePath,
+  findCaseFoldCollisions,
+  isReservedOrIgnoredPath,
+} from '../../domain/path-policy.js';
 import { openDatabase } from '../../storage/sqlite.js';
 import { ProvenanceRepository } from '../../storage/provenance-repo.js';
 import {
@@ -96,7 +102,18 @@ function exitForBlockActions(actions: readonly PullAction[]): number {
         action.code === 'UNRESOLVED_LEAVES' ||
         action.code.startsWith('CONFLICT'))
   );
-  return hasConflict ? EXIT_CODES.CONFLICT : EXIT_CODES.CORRUPTION;
+  if (hasConflict) {
+    return EXIT_CODES.CONFLICT;
+  }
+
+  const hasPreflight = actions.some(
+    (action) =>
+      action.kind === 'block' &&
+      (action.code === 'VAULT_NOT_EMPTY' ||
+        action.code === 'UNSAFE_SYMLINK' ||
+        action.code === 'UNPROVEN_LOCAL_FILE')
+  );
+  return hasPreflight ? EXIT_CODES.CONFIG_ERROR : EXIT_CODES.CORRUPTION;
 }
 
 function outcomeForExit(exitCode: number): OutcomeCategory {
@@ -106,32 +123,94 @@ function outcomeForExit(exitCode: number): OutcomeCategory {
   return match?.[0] ?? OutcomeCategory.CORRUPTION;
 }
 
-async function vaultIsEmpty(vaultRoot: string): Promise<{ ok: true } | { ok: false; code: string; message: string }> {
+function listProvenancePaths(statePath: string): string[] {
+  const db = openDatabase(statePath);
   try {
-    const entries = await readdir(vaultRoot);
-    if (entries.length > 0) {
-      return {
-        ok: false,
-        code: 'VAULT_NOT_EMPTY',
-        message: `Vault '${vaultRoot}' is not empty; apply requires an empty or dedicated vault`,
-      };
+    const rows = db.prepare('SELECT path FROM file_provenance').all() as { path?: string }[];
+    return rows.map((row) => String(row.path ?? '')).filter((path) => path.length > 0);
+  } finally {
+    db.close();
+  }
+}
+
+function applyPathPolicyToPlan(actions: readonly PullAction[], caseInsensitive: boolean): PullAction[] {
+  const next: PullAction[] = [];
+  const createPaths: string[] = [];
+
+  for (const action of actions) {
+    if (action.kind !== 'create') {
+      next.push(action);
+      continue;
     }
-    return { ok: true };
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code === 'ENOENT') {
-      return {
-        ok: false,
-        code: 'VAULT_NOT_EMPTY',
-        message: `Vault '${vaultRoot}' does not exist`,
-      };
+
+    if (isReservedOrIgnoredPath(action.path)) {
+      next.push({ kind: 'skip-ignored', path: action.path });
+      continue;
+    }
+
+    try {
+      assertSafeVaultRelativePath(action.path);
+    } catch (err) {
+      next.push({
+        kind: 'block',
+        id: action.path,
+        path: action.path,
+        code: 'UNSAFE_PATH',
+        message: (err as Error).message,
+      });
+      continue;
+    }
+
+    createPaths.push(action.path);
+    next.push(action);
+  }
+
+  const colliding = new Set(findCaseFoldCollisions(createPaths, caseInsensitive).flat());
+  if (colliding.size === 0) {
+    return next;
+  }
+
+  return next.map((action) => {
+    if (action.kind !== 'create' || !colliding.has(action.path)) {
+      return action;
     }
     return {
-      ok: false,
-      code: 'VAULT_NOT_EMPTY',
-      message: `Failed to inspect vault '${vaultRoot}': ${(err as Error).message}`,
+      kind: 'block',
+      id: action.path,
+      path: action.path,
+      code: 'CASE_FOLD_COLLISION',
+      message: `Path '${action.path}' collides with another remote path when case-folded`,
+      suggestion: 'Rename or resolve the colliding remote files; neither path is materialized',
     };
+  });
+}
+
+function mergePreflightBlocks(actions: PullAction[], preflight: VaultPreflightResult): PullAction[] {
+  if (preflight.ok) {
+    return [...actions];
   }
+
+  const merged = [...actions];
+  if (preflight.blocks.length === 0) {
+    merged.push({
+      kind: 'block',
+      id: preflight.code,
+      code: preflight.code,
+      message: preflight.message,
+    });
+    return merged;
+  }
+
+  for (const block of preflight.blocks) {
+    merged.push({
+      kind: 'block',
+      id: block.path,
+      path: block.path,
+      code: block.code,
+      message: block.message,
+    });
+  }
+  return merged;
 }
 
 function decodeOptionsFromAdmission(
@@ -344,35 +423,20 @@ export async function runPullCommand(options: PullCommandOptions): Promise<numbe
         ...decodeOptions,
         fetchChunk,
       });
-      actions = buildPullPlan(observations);
+      actions = applyPathPolicyToPlan(
+        buildPullPlan(observations),
+        !Boolean(decodeOptions.handleFilenameCaseSensitive)
+      );
+
+      const preflight = await preflightVault(
+        config.resolvedVaultPath,
+        Boolean(config.vault.dedicated),
+        () => listProvenancePaths(config.resolvedStatePath)
+      );
+      actions = mergePreflightBlocks(actions, preflight);
 
       const blockActions = actions.filter((action) => action.kind === 'block');
-      if (!options.dryRun && blockActions.length === 0) {
-        const vaultCheck = await vaultIsEmpty(config.resolvedVaultPath);
-        if (!vaultCheck.ok) {
-          postSnapshot = await ZeroMutationVerifier.captureSnapshot(
-            guardedFetch,
-            allowedBaseUrl,
-            databaseName,
-            credentials
-          );
-          ZeroMutationVerifier.assertNoMutation(preSnapshot, postSnapshot);
-          emitReport({
-            type: 'pull_report',
-            outcome: OutcomeCategory.CONFIG_ERROR,
-            dryRun: options.dryRun,
-            remoteFingerprint,
-            negotiatedSettingsHash,
-            adoptedTweaks,
-            actions: serializePullActions(actions),
-            blockers: [{ code: vaultCheck.code, message: vaultCheck.message }],
-            zeroMutationVerified: true,
-            preUpdateSeq: preSnapshot.updateSeq,
-            postUpdateSeq: postSnapshot.updateSeq,
-          });
-          return EXIT_CODES.CONFIG_ERROR;
-        }
-
+      if (!options.dryRun && blockActions.length === 0 && preflight.ok) {
         await applyVerifiedPull({
           vaultRoot: config.resolvedVaultPath,
           actions,
