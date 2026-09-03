@@ -24,3 +24,6 @@ Thumbs.db
 
 # Ephemeral GSD research cache
 .planning/research/.cache/
+
+# Agent configuration and skills
+.agents/

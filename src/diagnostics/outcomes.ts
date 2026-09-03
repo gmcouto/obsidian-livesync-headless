@@ -1,0 +1,20 @@
+export type OutcomeCategory =
+  | 'SUCCESS'
+  | 'CONFIG_ERROR'
+  | 'AUTHENTICATION_ERROR'
+  | 'INCOMPATIBLE'
+  | 'NOT_FOUND'
+  | 'TRANSIENT_OUTAGE'
+  | 'MUTATION_VIOLATION'
+  | 'CORRUPTION';
+
+export const EXIT_CODES: Record<OutcomeCategory, number> = {
+  SUCCESS: 0,
+  CONFIG_ERROR: 1,
+  AUTHENTICATION_ERROR: 2,
+  INCOMPATIBLE: 3,
+  NOT_FOUND: 4,
+  TRANSIENT_OUTAGE: 5,
+  MUTATION_VIOLATION: 6,
+  CORRUPTION: 7,
+};

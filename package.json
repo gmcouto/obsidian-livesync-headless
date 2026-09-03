@@ -1,0 +1,35 @@
+{
+  "name": "obsidian-livesync-headless",
+  "version": "0.1.0",
+  "description": "Headless CLI client for Obsidian Self-hosted LiveSync",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration"
+  },
+  "dependencies": {
+    "@vrtmrz/livesync-commonlib": "0.1.21",
+    "yaml": "2.9.0",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@testcontainers/couchdb": "12.1.0",
+    "@types/node": "24.10.13",
+    "@types/pouchdb-core": "7.0.15",
+    "@vitest/coverage-v8": "4.1.11",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  },
+  "overrides": {
+    "pouchdb-core": {
+      "uuid": "11.1.1"
+    },
+    "pouchdb-utils": {
+      "uuid": "11.1.1"
+    }
+  }
+}
