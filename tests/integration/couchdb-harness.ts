@@ -60,10 +60,16 @@ export class CouchDbTestHarness {
   async putDocument(
     dbName: string,
     docId: string,
-    doc: Record<string, unknown>
+    doc: Record<string, unknown>,
+    query?: Record<string, string>
   ): Promise<{ rev: string }> {
     const pathSegments = docId.split('/').map(encodeURIComponent).join('/');
     const url = new URL(`/${encodeURIComponent(dbName)}/${pathSegments}`, this.getBaseUrl());
+    if (query) {
+      for (const [key, value] of Object.entries(query)) {
+        url.searchParams.set(key, value);
+      }
+    }
     const res = await fetch(url.toString(), {
       method: 'PUT',
       headers: {
@@ -159,6 +165,32 @@ export class CouchDbTestHarness {
       mtime: Date.now(),
     });
     return { id, rev };
+  }
+
+  async seedConflictingLegacyNotes(
+    dbName: string,
+    relativePath: string,
+    winnerBody: string,
+    otherBody: string
+  ): Promise<{ id: string; winnerRev: string; otherRev: string }> {
+    const first = await this.seedLegacyNote(dbName, relativePath, winnerBody);
+    const otherRev = '1-conflictleaf';
+    await this.putDocument(
+      dbName,
+      first.id,
+      {
+        _id: first.id,
+        _rev: otherRev,
+        type: 'notes',
+        path: relativePath,
+        data: otherBody,
+        size: new TextEncoder().encode(otherBody).byteLength,
+        deleted: false,
+        mtime: Date.now(),
+      },
+      { new_edits: 'false' }
+    );
+    return { id: first.id, winnerRev: first.rev, otherRev };
   }
 
   async seedChunkedPlainNote(

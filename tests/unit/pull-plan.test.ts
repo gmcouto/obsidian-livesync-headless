@@ -192,6 +192,91 @@ describe('buildPullPlan', () => {
     })).toEqual(['Legacy.md', 'Plain.md', 'Photo.bin']);
   });
 
+  it('blocks two live non-deleted leaves for the same path as CONFLICT_LEAVES', () => {
+    const winner = new TextEncoder().encode('couch-winner');
+    const other = new TextEncoder().encode('other-leaf');
+    const plan = buildPullPlan([
+      {
+        kind: 'note',
+        path: 'Welcome.md',
+        sourceRevision: '2-win',
+        type: 'notes',
+        deleted: false,
+        bytes: winner,
+      },
+      {
+        kind: 'note',
+        path: 'Welcome.md',
+        sourceRevision: '1-other',
+        type: 'notes',
+        deleted: false,
+        bytes: other,
+      },
+    ]);
+
+    expect(plan).toHaveLength(1);
+    expect(plan[0]).toMatchObject({
+      kind: 'block',
+      path: 'Welcome.md',
+      code: 'CONFLICT_LEAVES',
+    });
+    expect(plan.some((action) => action.kind === 'create')).toBe(false);
+    expect(JSON.stringify(plan)).not.toContain('couch-winner');
+  });
+
+  it('does not collapse byte-identical live leaves', () => {
+    const bytes = new TextEncoder().encode('same-bytes');
+    const plan = buildPullPlan([
+      {
+        kind: 'note',
+        path: 'Welcome.md',
+        sourceRevision: '2-aaa',
+        type: 'notes',
+        deleted: false,
+        bytes,
+      },
+      {
+        kind: 'note',
+        path: 'Welcome.md',
+        sourceRevision: '2-bbb',
+        type: 'notes',
+        deleted: false,
+        bytes,
+      },
+    ]);
+
+    expect(plan).toEqual([
+      expect.objectContaining({ kind: 'block', path: 'Welcome.md', code: 'CONFLICT_LEAVES' }),
+    ]);
+    expect(plan.some((action) => action.kind === 'create')).toBe(false);
+  });
+
+  it('yields a single skip-logical-delete when every leaf is deleted', () => {
+    const plan = buildPullPlan([
+      {
+        kind: 'note',
+        path: 'Gone.md',
+        sourceRevision: '3-del',
+        type: 'notes',
+        deleted: true,
+        bytes: new TextEncoder().encode('should-not-materialize'),
+      },
+      {
+        kind: 'note',
+        path: 'Gone.md',
+        sourceRevision: '2-tomb',
+        type: 'notes',
+        deleted: true,
+        bytes: new Uint8Array(),
+      },
+    ]);
+
+    expect(plan).toEqual([
+      { kind: 'skip-logical-delete', path: 'Gone.md', sourceRevision: '3-del' },
+    ]);
+    expect(plan.some((action) => action.kind === 'create')).toBe(false);
+  });
+
   it('omits assembled bytes from serialized actions', () => {
     const bytes = new TextEncoder().encode('secret-body');
     const serialized = serializePullActions([

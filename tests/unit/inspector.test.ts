@@ -134,6 +134,63 @@ describe('CouchDB Protocol Inspector Unit Tests', () => {
     expect(result.sampleDocs).toEqual([]);
   });
 
+  it('fetchDocumentIfExists appends conflicts=true and other query params to the document URL', async () => {
+    const mockResponses: Record<string, unknown> = {
+      'http://127.0.0.1:5984/obsidian-vault/Welcome.md?conflicts=true': {
+        _id: 'Welcome.md',
+        _rev: '2-win',
+        type: 'notes',
+        path: 'Welcome.md',
+        _conflicts: ['1-other'],
+      },
+      'http://127.0.0.1:5984/obsidian-vault/Welcome.md?rev=1-other': {
+        _id: 'Welcome.md',
+        _rev: '1-other',
+        type: 'notes',
+        path: 'Welcome.md',
+        data: 'other-leaf',
+      },
+    };
+
+    const mockFetch = vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const data = mockResponses[url];
+      if (data !== undefined) {
+        return new Response(JSON.stringify(data), { status: 200 });
+      }
+      return new Response(JSON.stringify({ error: 'not_found' }), { status: 404 });
+    });
+
+    const withConflicts = await fetchDocumentIfExists(
+      mockFetch as typeof globalThis.fetch,
+      baseUrl,
+      databaseName,
+      'Welcome.md',
+      undefined,
+      { conflicts: 'true' }
+    );
+    expect(withConflicts?._rev).toBe('2-win');
+    expect(withConflicts?._conflicts).toEqual(['1-other']);
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:5984/obsidian-vault/Welcome.md?conflicts=true',
+      expect.objectContaining({ method: 'GET' })
+    );
+
+    const leaf = await fetchDocumentIfExists(
+      mockFetch as typeof globalThis.fetch,
+      baseUrl,
+      databaseName,
+      'Welcome.md',
+      undefined,
+      { rev: '1-other' }
+    );
+    expect(leaf?._rev).toBe('1-other');
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:5984/obsidian-vault/Welcome.md?rev=1-other',
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
+
   it('ZeroMutationVerifier verifies identical snapshots and flags any changes', () => {
     const pre = {
       updateSeq: '1-abc',
