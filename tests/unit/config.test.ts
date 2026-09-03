@@ -44,6 +44,46 @@ encryption:
     expect(config.resolvedVaultPath).toBe(vaultPath);
     expect(config.resolvedStatePath).toBe(statePath);
     expect(config.encryption?.enabled).toBe(false);
+    expect(config.vault.dedicated).toBe(false);
+  });
+
+  it('accepts vault.dedicated true and rejects an unknown vault key', async () => {
+    const vaultPath = path.join(tempDir, 'dedicated-vault');
+    const statePath = path.join(tempDir, 'dedicated-state');
+    const dedicatedPath = path.join(tempDir, 'dedicated.yaml');
+    await fs.writeFile(
+      dedicatedPath,
+      `
+remote:
+  url: "http://127.0.0.1:5984"
+  database: "obsidian-sync"
+vault:
+  path: "${vaultPath}"
+  dedicated: true
+state:
+  path: "${statePath}"
+`
+    );
+
+    const config = await loadConfig(dedicatedPath, {});
+    expect(config.vault.dedicated).toBe(true);
+
+    const unknownPath = path.join(tempDir, 'unknown-vault-key.yaml');
+    await fs.writeFile(
+      unknownPath,
+      `
+remote:
+  url: "http://127.0.0.1:5984"
+  database: "obsidian-sync"
+vault:
+  path: "${vaultPath}"
+  extraVaultKey: true
+state:
+  path: "${statePath}"
+`
+    );
+
+    await expect(loadConfig(unknownPath, {})).rejects.toThrow(/Configuration validation failed/);
   });
 
   it('resolves secrets via fromEnv and registers with redactor', async () => {
