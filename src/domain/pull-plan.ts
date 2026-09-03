@@ -8,7 +8,14 @@ export type PullAction =
   | { kind: 'skip-logical-delete'; path: string; sourceRevision: string }
   | { kind: 'skip-special'; id: string; type: string }
   | { kind: 'skip-ignored'; path: string }
-  | { kind: 'block'; path?: string; id: string; code: string; message: string };
+  | {
+      kind: 'block';
+      path?: string;
+      id: string;
+      code: string;
+      message: string;
+      suggestion?: string;
+    };
 
 export type PullObservation =
   | {
@@ -21,7 +28,15 @@ export type PullObservation =
     }
   | { kind: 'special'; id: string; type: string }
   | { kind: 'ignored'; path: string }
-  | { kind: 'block'; id: string; path?: string; code: string; message: string };
+  | { kind: 'block'; id: string; path?: string; code: string; message: string; suggestion?: string };
+
+export interface DecodeFailureObservation {
+  readonly ok: false;
+  readonly code: string;
+  readonly message: string;
+  readonly id: string;
+  readonly path?: string;
+}
 
 export interface SerializedPullAction {
   readonly kind: PullAction['kind'];
@@ -33,6 +48,36 @@ export interface SerializedPullAction {
   readonly contentSha256?: string;
   readonly code?: string;
   readonly message?: string;
+  readonly suggestion?: string;
+}
+
+export function suggestionForBlock(code: string): string {
+  switch (code) {
+    case 'DECRYPT_FAILED':
+    case 'AUTHENTICATION':
+      return 'Verify encryption.passphrase matches the remote LiveSync passphrase';
+    case 'MISSING_CHUNK':
+      return 'Wait for every children chunk id to exist on the remote, then retry pull';
+    case 'SIZE_MISMATCH':
+      return 'Do not materialize the path; the assembled payload does not match metadata size';
+    case 'PATH_ID_MISMATCH':
+      return 'Use the decrypted document path; never guess a vault name from an f: document id';
+    case 'UNSUPPORTED_NOTE_SHAPE':
+      return 'Skip or block unsupported document shapes; never PUT them back to CouchDB';
+    default:
+      return 'Resolve the validation failure before applying pull; no remote writes are issued';
+  }
+}
+
+export function observationFromDecodeFailure(failure: DecodeFailureObservation): PullObservation {
+  return {
+    kind: 'block',
+    id: failure.id,
+    path: failure.path,
+    code: failure.code,
+    message: failure.message,
+    suggestion: suggestionForBlock(failure.code),
+  };
 }
 
 export function isSupportedNoteType(type: string): boolean {
@@ -60,6 +105,7 @@ export function buildPullPlan(observations: readonly PullObservation[]): PullAct
         path: observation.path,
         code: observation.code,
         message: observation.message,
+        suggestion: observation.suggestion ?? suggestionForBlock(observation.code),
       });
       continue;
     }
@@ -134,6 +180,7 @@ export function serializePullActions(actions: readonly PullAction[]): Serialized
       id: action.id,
       code: action.code,
       message: action.message,
+      suggestion: action.suggestion,
     };
   });
 }
