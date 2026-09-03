@@ -18,11 +18,11 @@
 
 ### LiveSync Compatibility
 
-- [ ] **COMP-01**: User can synchronize supported current and required legacy LiveSync normal-file metadata without rewriting unknown fields or special documents.
-- [ ] **COMP-02**: User can synchronize databases using supported LiveSync encryption, including current E2EE V2 and required legacy V1 reads, with authenticated decryption failures reported as blockers.
-- [ ] **COMP-03**: User can synchronize path-obfuscated and unobfuscated records using upstream-compatible path-to-document-ID, Unicode, filename-case, and underscore rules.
-- [ ] **COMP-04**: User can reconstruct and create text and binary files using the database's negotiated chunk hash, splitter, size, encoding, and compression conventions.
-- [ ] **COMP-05**: User receives a blocking error when metadata identity, decrypted content, chunk identity, assembled size, or supported document shape fails validation.
+- [x] **COMP-01**: User can synchronize supported current and required legacy LiveSync normal-file metadata without rewriting unknown fields or special documents.
+- [x] **COMP-02**: User can synchronize databases using supported LiveSync encryption, including current E2EE V2 and required legacy V1 reads, with authenticated decryption failures reported as blockers.
+- [x] **COMP-03**: User can synchronize path-obfuscated and unobfuscated records using upstream-compatible path-to-document-ID, Unicode, filename-case, and underscore rules.
+- [x] **COMP-04**: User can reconstruct and create text and binary files using the database's negotiated chunk hash, splitter, size, encoding, and compression conventions.
+- [x] **COMP-05**: User receives a blocking error when metadata identity, decrypted content, chunk identity, assembled size, or supported document shape fails validation.
 - [ ] **COMP-06**: User's synchronization considers every live revision leaf and available ancestry needed to preserve conflict branches rather than trusting only CouchDB's deterministic winner.
 - [ ] **COMP-07**: User can coexist with supported Obsidian LiveSync clients against the same database without format divergence, hidden conflict loss, or normalization rewrites.
 
@@ -128,11 +128,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONF-06 | Phase 1 | Complete |
 | CONF-07 | Phase 4 | Pending |
 | CONF-08 | Phase 4 | Pending |
-| COMP-01 | Phase 2 | Pending |
-| COMP-02 | Phase 2 | Pending |
-| COMP-03 | Phase 2 | Pending |
-| COMP-04 | Phase 2 | Pending |
-| COMP-05 | Phase 2 | Pending |
+| COMP-01 | Phase 2 | Complete |
+| COMP-02 | Phase 2 | Complete |
+| COMP-03 | Phase 2 | Complete |
+| COMP-04 | Phase 2 | Complete |
+| COMP-05 | Phase 2 | Complete |
 | COMP-06 | Phase 2 | Pending |
 | COMP-07 | Phase 6 | Pending |
 | PULL-01 | Phase 2 | Complete |
