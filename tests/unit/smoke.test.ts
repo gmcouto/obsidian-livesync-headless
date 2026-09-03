@@ -49,6 +49,20 @@ describe('Walking Skeleton Smoke Tests', () => {
     expect(parsedPull.command).toBe('pull');
     expect(parsedPull.options.dryRun).toBe(true);
     expect(parsedPull.options.config).toBe('file.yaml');
+
+    const omitted = parseCliArgs(['--config', 'file.yaml']);
+    expect(omitted.command).toBeUndefined();
+    expect(omitted.options.config).toBe('file.yaml');
+  });
+
+  it('requires --config for pull and documents the command in help', async () => {
+    expect(CLI_HELP).toContain('pull');
+    expect(CLI_HELP).toContain('--dry-run');
+    expect(EXIT_CODES.CONFLICT).toBe(8);
+    expect(EXIT_CODES.CORRUPTION).toBe(7);
+
+    const code = await main(['pull']);
+    expect(code).toBe(EXIT_CODES.CONFIG_ERROR);
   });
 
   it('outputs help text when --help is supplied', async () => {
