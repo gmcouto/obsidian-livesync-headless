@@ -42,6 +42,51 @@ function buildAuthHeader(credentials?: InventoryCredentials): string | undefined
   return undefined;
 }
 
+function conflictRevsFrom(document: CouchDbDocument): string[] {
+  const raw = document._conflicts;
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.filter((rev): rev is string => typeof rev === 'string' && rev.length > 0);
+}
+
+async function fetchNoteLeaves(
+  guardedFetch: typeof globalThis.fetch,
+  baseUrl: URL,
+  databaseName: string,
+  docId: string,
+  authHeader: string | undefined
+): Promise<CouchDbDocument[] | null> {
+  const [conflictsKey, conflictsValue] = 'conflicts=true'.split('=') as [string, string];
+  const document = await fetchDocumentIfExists<CouchDbDocument>(
+    guardedFetch,
+    baseUrl,
+    databaseName,
+    docId,
+    authHeader,
+    { [conflictsKey]: conflictsValue }
+  );
+  if (!document) {
+    return null;
+  }
+
+  const leaves: CouchDbDocument[] = [document];
+  for (const rev of conflictRevsFrom(document)) {
+    const leaf = await fetchDocumentIfExists<CouchDbDocument>(
+      guardedFetch,
+      baseUrl,
+      databaseName,
+      docId,
+      authHeader,
+      { rev }
+    );
+    if (leaf) {
+      leaves.push(leaf);
+    }
+  }
+  return leaves;
+}
+
 export async function inventoryRemoteDocuments(
   guardedFetch: typeof globalThis.fetch,
   baseUrl: URL,
@@ -105,7 +150,7 @@ export async function inventoryRemoteDocuments(
         continue;
       }
 
-      const document = await fetchDocumentIfExists<CouchDbDocument>(
+      const leaves = await fetchNoteLeaves(
         guardedFetch,
         baseUrl,
         databaseName,
@@ -113,12 +158,18 @@ export async function inventoryRemoteDocuments(
         authHeader
       );
 
-      if (!document) {
+      if (!leaves || leaves.length === 0) {
         collected.push({ kind: 'tombstone', id: row.id, rev });
         continue;
       }
 
-      collected.push({ kind: 'document', id: row.id, rev: document._rev, document });
+      for (const leaf of leaves) {
+        if (leaf._deleted === true) {
+          collected.push({ kind: 'tombstone', id: row.id, rev: leaf._rev });
+          continue;
+        }
+        collected.push({ kind: 'document', id: row.id, rev: leaf._rev, document: leaf });
+      }
     }
 
     if (rows.length < ALL_DOCS_PAGE_SIZE) {

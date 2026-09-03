@@ -64,6 +64,8 @@ export function suggestionForBlock(code: string): string {
       return 'Use the decrypted document path; never guess a vault name from an f: document id';
     case 'UNSUPPORTED_NOTE_SHAPE':
       return 'Skip or block unsupported document shapes; never PUT them back to CouchDB';
+    case 'CONFLICT_LEAVES':
+      return 'Resolve every live non-deleted leaf before applying pull; the CouchDB winner is not materialized';
     default:
       return 'Resolve the validation failure before applying pull; no remote writes are issued';
   }
@@ -84,8 +86,30 @@ export function isSupportedNoteType(type: string): boolean {
   return NOTE_TYPES.has(type);
 }
 
+function noteGroupKey(observation: Extract<PullObservation, { kind: 'note' }>): string {
+  return observation.path;
+}
+
+function actionFromLiveNote(observation: Extract<PullObservation, { kind: 'note' }>): PullAction {
+  if (!isSupportedNoteType(observation.type) || SPECIAL_NOTE_TYPES.has(observation.type)) {
+    return {
+      kind: 'skip-special',
+      id: observation.path,
+      type: observation.type,
+    };
+  }
+
+  return {
+    kind: 'create',
+    path: observation.path,
+    sourceRevision: observation.sourceRevision,
+    bytes: observation.bytes,
+  };
+}
+
 export function buildPullPlan(observations: readonly PullObservation[]): PullAction[] {
   const actions: PullAction[] = [];
+  const consumedNoteKeys = new Set<string>();
 
   for (const observation of observations) {
     if (observation.kind === 'special') {
@@ -110,7 +134,31 @@ export function buildPullPlan(observations: readonly PullObservation[]): PullAct
       continue;
     }
 
-    if (observation.deleted) {
+    const key = noteGroupKey(observation);
+    if (consumedNoteKeys.has(key)) {
+      continue;
+    }
+    consumedNoteKeys.add(key);
+
+    const group = observations.filter(
+      (candidate): candidate is Extract<PullObservation, { kind: 'note' }> =>
+        candidate.kind === 'note' && noteGroupKey(candidate) === key
+    );
+    const live = group.filter((candidate) => !candidate.deleted);
+
+    if (live.length >= 2) {
+      actions.push({
+        kind: 'block',
+        id: key,
+        path: observation.path,
+        code: 'CONFLICT_LEAVES',
+        message: `Path '${observation.path}' has ${live.length} live non-deleted revision leaves; the CouchDB winner is not materialized`,
+        suggestion: suggestionForBlock('CONFLICT_LEAVES'),
+      });
+      continue;
+    }
+
+    if (live.length === 0) {
       actions.push({
         kind: 'skip-logical-delete',
         path: observation.path,
@@ -119,21 +167,7 @@ export function buildPullPlan(observations: readonly PullObservation[]): PullAct
       continue;
     }
 
-    if (!isSupportedNoteType(observation.type) || SPECIAL_NOTE_TYPES.has(observation.type)) {
-      actions.push({
-        kind: 'skip-special',
-        id: observation.path,
-        type: observation.type,
-      });
-      continue;
-    }
-
-    actions.push({
-      kind: 'create',
-      path: observation.path,
-      sourceRevision: observation.sourceRevision,
-      bytes: observation.bytes,
-    });
+    actions.push(actionFromLiveNote(live[0]));
   }
 
   return actions;

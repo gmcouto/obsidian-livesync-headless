@@ -70,10 +70,16 @@ export async function fetchDocumentIfExists<T extends CouchDbDocument>(
   baseUrl: URL,
   databaseName: string,
   docId: string,
-  authHeader?: string
+  authHeader?: string,
+  query?: Record<string, string>
 ): Promise<T | null> {
   const pathSegments = docId.split('/').map(encodeURIComponent).join('/');
   const docUrl = new URL(`/${encodeURIComponent(databaseName)}/${pathSegments}`, baseUrl);
+  if (query) {
+    for (const [key, value] of Object.entries(query)) {
+      docUrl.searchParams.set(key, value);
+    }
+  }
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
