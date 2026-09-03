@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 current_phase: 2
 current_phase_name: Verified Pull Materialization
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-09-03T17:53:08.033Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-09-03T18:06:13.996Z"
 last_activity: 2026-09-03
 last_activity_desc: Phase 2 execution started
-state_head: d613f109b2d8689efce1fa8fe84d4b8f24541d35
+state_head: c56aac8c48bc3914ee49af4e0d62c6e838d158ae
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
   percent: 17
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-09-03)
 ## Current Position
 
 Phase: 2 (Verified Pull Materialization) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-09-03 — Phase 2 execution started
 
@@ -62,6 +62,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 01 P02 | 10 min | 2 tasks | 9 files |
 | Phase 01 P03 | 15 min | 3 tasks | 14 files |
 | Phase 02-verified-pull-materialization P01 | 7 min | 3 tasks | 16 files |
+| Phase 02-verified-pull-materialization P02 | 10 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,9 @@ Recent decisions affecting current work:
 - [Phase 02]: Isolate Commonlib 0.1.21 imports in decode-adapter.ts; pull-plan stays Commonlib-free
 - [Phase 02]: Adopt remote usePathObfuscation, useDynamicIterationCount, and handleFilenameCaseSensitive instead of INCOMPATIBLE_TWEAK
 - [Phase 02]: Dry-run issues createReadCapability only; provenance is written only after atomic install read-back
+- [Phase 02]: Compose incoming decrypt with octagonal-wheels decrypt/decryptHkdf because getConfiguredFunctionsForEncryption is not a published export
+- [Phase 02]: Import PREFIX_* from compat/common/types; shared.const does not export ID prefixes
+- [Phase 02]: Use one encryptionPassphrase for decrypt and path2id_base obfuscation
 
 ### Pending Todos
 
@@ -95,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-09-03T17:53:08.005Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-09-03T18:06:13.958Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
