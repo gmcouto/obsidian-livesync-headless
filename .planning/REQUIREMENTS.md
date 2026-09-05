@@ -23,18 +23,18 @@
 - [x] **COMP-03**: User can synchronize path-obfuscated and unobfuscated records using upstream-compatible path-to-document-ID, Unicode, filename-case, and underscore rules.
 - [x] **COMP-04**: User can reconstruct and create text and binary files using the database's negotiated chunk hash, splitter, size, encoding, and compression conventions.
 - [x] **COMP-05**: User receives a blocking error when metadata identity, decrypted content, chunk identity, assembled size, or supported document shape fails validation.
-- [ ] **COMP-06**: User's synchronization considers every live revision leaf and available ancestry needed to preserve conflict branches rather than trusting only CouchDB's deterministic winner.
+- [x] **COMP-06**: User's synchronization considers every live revision leaf and available ancestry needed to preserve conflict branches rather than trusting only CouchDB's deterministic winner.
 - [ ] **COMP-07**: User can coexist with supported Obsidian LiveSync clients against the same database without format divergence, hidden conflict loss, or normalization rewrites.
 
 ### Pull and Local Reflection
 
 - [x] **PULL-01**: User can run a finite pull-only dry-run that reads and decodes remote state and reports planned local actions without mutating CouchDB, the vault, or synchronization provenance.
-- [ ] **PULL-02**: User can apply a verified pull to an empty or explicitly dedicated vault only after all content required for each file has been fetched, decrypted, assembled, and validated.
-- [ ] **PULL-03**: User's created or replaced local files are staged on the same filesystem, flushed, atomically installed where supported, and read back before synchronization state is committed.
+- [x] **PULL-02**: User can apply a verified pull to an empty or explicitly dedicated vault only after all content required for each file has been fetched, decrypted, assembled, and validated.
+- [x] **PULL-03**: User's created or replaced local files are staged on the same filesystem, flushed, atomically installed where supported, and read back before synchronization state is committed.
 - [ ] **PULL-04**: User's displaced or remotely deleted local files are moved to collision-safe recoverable quarantine, and the operation stops before removal when recovery cannot be guaranteed.
-- [ ] **PULL-05**: User's local state records the exact remote revision reflected in each file only after the corresponding filesystem change is durably verified.
+- [x] **PULL-05**: User's local state records the exact remote revision reflected in each file only after the corresponding filesystem change is durably verified.
 - [ ] **PULL-06**: User can resume an interrupted or partially blocked pull without treating incomplete files as local edits or advancing past unverified data.
-- [ ] **PULL-07**: User is protected from path traversal, absolute paths, unsafe symlinks, reserved state paths, and filename-case collisions during local reflection.
+- [x] **PULL-07**: User is protected from path traversal, absolute paths, unsafe symlinks, reserved state paths, and filename-case collisions during local reflection.
 - [ ] **PULL-08**: User can rerun a completed pull with no remote changes and receive an idempotent no-op result.
 
 ### Bidirectional One-Shot Sync
@@ -133,15 +133,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-03 | Phase 2 | Complete |
 | COMP-04 | Phase 2 | Complete |
 | COMP-05 | Phase 2 | Complete |
-| COMP-06 | Phase 2 | Pending |
+| COMP-06 | Phase 2 | Complete |
 | COMP-07 | Phase 6 | Pending |
 | PULL-01 | Phase 2 | Complete |
-| PULL-02 | Phase 2 | Pending |
-| PULL-03 | Phase 2 | Pending |
+| PULL-02 | Phase 2 | Complete |
+| PULL-03 | Phase 2 | Complete |
 | PULL-04 | Phase 3 | Pending |
-| PULL-05 | Phase 2 | Pending |
+| PULL-05 | Phase 2 | Complete |
 | PULL-06 | Phase 3 | Pending |
-| PULL-07 | Phase 2 | Pending |
+| PULL-07 | Phase 2 | Complete |
 | PULL-08 | Phase 3 | Pending |
 | SYNC-01 | Phase 4 | Pending |
 | SYNC-02 | Phase 4 | Pending |

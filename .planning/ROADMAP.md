@@ -7,7 +7,7 @@ The MVP advances through six guarded vertical slices: establish structurally rea
 ## Phases
 
 - [x] **Phase 1: Guarded Read-Only Admission** - Run the first real CLI-to-CouchDB integration while proving configuration safety, compatibility, and zero remote mutation. (completed 2026-09-03)
-- [ ] **Phase 2: Verified Pull Materialization** - Decode supported LiveSync records and safely materialize a dedicated vault without remote writes.
+- [x] **Phase 2: Verified Pull Materialization** - Decode supported LiveSync records and safely materialize a dedicated vault without remote writes. (completed 2026-09-05)
 - [ ] **Phase 3: Recoverable Pull Operations** - Make local reflection durable, resumable, quarantined, and repeatably idempotent before any push is allowed.
 - [ ] **Phase 4: Explicitly Armed Bidirectional One-Shot** - Converge local and remote file state once through a fresh, scope-bound write grant and preservation-first reconciliation.
 - [ ] **Phase 5: Continuous Convergence Daemon** - Reuse the one-shot safety model for bounded, restart-safe continuous synchronization.
@@ -49,7 +49,7 @@ The MVP advances through six guarded vertical slices: establish structurally rea
   4. User's files are protected from traversal, absolute paths, unsafe symlinks, reserved state paths, and filename-case collisions, and valid content is staged, flushed, atomically installed where supported, and read back before acceptance.
   5. User can verify that local provenance records the exact remote revision for each visible file only after its bytes are durably reflected.
 
-**Plans:** 4/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 **Wave 1**
@@ -138,7 +138,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Guarded Read-Only Admission | 3/3 | Complete    | 2026-09-03 |
-| 2. Verified Pull Materialization | 4/4 | In Progress|  |
+| 2. Verified Pull Materialization | 4/4 | Complete    | 2026-09-05 |
 | 3. Recoverable Pull Operations | 0/TBD | Not started | - |
 | 4. Explicitly Armed Bidirectional One-Shot | 0/TBD | Not started | - |
 | 5. Continuous Convergence Daemon | 0/TBD | Not started | - |
