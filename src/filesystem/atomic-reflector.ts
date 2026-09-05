@@ -37,10 +37,16 @@ function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
   return true;
 }
 
+export interface InstallAtomicallyOptions {
+  readonly renameFn?: (oldPath: string, newPath: string) => Promise<void>;
+  readonly readFileFn?: (path: string) => Promise<Buffer | Uint8Array>;
+}
+
 export async function installAtomically(
   vaultRoot: string,
   relativePath: string,
-  bytes: Uint8Array
+  bytes: Uint8Array,
+  options?: InstallAtomicallyOptions
 ): Promise<void> {
   assertSafeRelativePath(relativePath);
 
@@ -57,7 +63,8 @@ export async function installAtomically(
     await handle.close();
   }
 
-  await rename(tmp, dest);
+  const doRename = options?.renameFn ?? rename;
+  await doRename(tmp, dest);
 
   try {
     const dir = await open(parentDir, 'r');
@@ -73,7 +80,8 @@ export async function installAtomically(
     });
   }
 
-  const written = new Uint8Array(await readFile(dest));
+  const doReadFile = options?.readFileFn ?? readFile;
+  const written = new Uint8Array(await doReadFile(dest));
   if (!bytesEqual(written, bytes)) {
     throw new ReadbackMismatchError(relativePath);
   }
