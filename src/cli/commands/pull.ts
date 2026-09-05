@@ -7,7 +7,12 @@ import {
   createGuardedFetch,
   MutationAttemptBlockedError,
 } from '../../security/transport-guard.js';
-import { createReadCapability } from '../../security/capabilities.js';
+import {
+  createReadCapability,
+  createVaultReflectCapability,
+  isVaultReflectCapability,
+  type VaultReflectCapability,
+} from '../../security/capabilities.js';
 import {
   probeRemoteDatabase,
   AuthenticationRequiredError,
@@ -63,12 +68,19 @@ export interface PullCommandOptions {
   stdout?: (msg: string) => void;
 }
 
-export async function applyVerifiedPull(options: {
-  vaultRoot: string;
-  actions: readonly PullAction[];
-  remoteFingerprint: string;
-  statePath: string;
-}): Promise<void> {
+export async function applyVerifiedPull(
+  capability: VaultReflectCapability,
+  options: {
+    vaultRoot: string;
+    actions: readonly PullAction[];
+    remoteFingerprint: string;
+    statePath: string;
+  }
+): Promise<void> {
+  if (!isVaultReflectCapability(capability)) {
+    throw new Error('Reflect capability required to apply pull actions.');
+  }
+
   const db = openDatabase(options.statePath);
   try {
     const repo = new ProvenanceRepository(db);
@@ -437,7 +449,12 @@ export async function runPullCommand(options: PullCommandOptions): Promise<numbe
 
       const blockActions = actions.filter((action) => action.kind === 'block');
       if (!options.dryRun && blockActions.length === 0 && preflight.ok) {
-        await applyVerifiedPull({
+        const reflectCapability = createVaultReflectCapability(
+          allowedBaseUrl,
+          databaseName,
+          config.resolvedVaultPath
+        );
+        await applyVerifiedPull(reflectCapability, {
           vaultRoot: config.resolvedVaultPath,
           actions,
           remoteFingerprint,

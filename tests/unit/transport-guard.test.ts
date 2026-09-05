@@ -7,13 +7,16 @@ import {
 import {
   createReadCapability,
   createAdmissionCapability,
+  createVaultReflectCapability,
   isReadCapability,
   isAdmissionCapability,
+  isVaultReflectCapability,
 } from '../../src/security/capabilities.js';
 
 describe('Guarded Read-Only HTTP Transport', () => {
   const allowedBaseUrl = new URL('http://127.0.0.1:5984');
   const databaseName = 'obsidian-vault';
+  const vaultRoot = '/path/to/vault';
 
   it('allows GET and HEAD requests to database endpoints', async () => {
     const mockBaseFetch = vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
@@ -175,6 +178,7 @@ describe('Guarded Read-Only HTTP Transport', () => {
     const readCap = createReadCapability(allowedBaseUrl, databaseName);
     expect(isReadCapability(readCap)).toBe(true);
     expect(isAdmissionCapability(readCap)).toBe(false);
+    expect(isVaultReflectCapability(readCap)).toBe(false);
     expect(readCap.databaseName).toBe(databaseName);
 
     const admissionCap = createAdmissionCapability(
@@ -185,10 +189,19 @@ describe('Guarded Read-Only HTTP Transport', () => {
     );
     expect(isAdmissionCapability(admissionCap)).toBe(true);
     expect(isReadCapability(admissionCap)).toBe(false);
+    expect(isVaultReflectCapability(admissionCap)).toBe(false);
     expect(admissionCap.remoteFingerprint).toBe('fingerprint-sha256');
     expect(admissionCap.negotiatedSettingsHash).toBe('settings-sha256');
 
+    const reflectCap = createVaultReflectCapability(allowedBaseUrl, databaseName, vaultRoot);
+    expect(isVaultReflectCapability(reflectCap)).toBe(true);
+    expect(isReadCapability(reflectCap)).toBe(false);
+    expect(isAdmissionCapability(reflectCap)).toBe(false);
+    expect(reflectCap.vaultRoot).toBe(vaultRoot);
+
     expect(isReadCapability({})).toBe(false);
     expect(isAdmissionCapability(null)).toBe(false);
+    expect(isVaultReflectCapability({})).toBe(false);
+    expect(isVaultReflectCapability(null)).toBe(false);
   });
 });

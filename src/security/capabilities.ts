@@ -1,5 +1,6 @@
 const ReadCapabilityBrand = Symbol('ReadCapability');
 const AdmissionCapabilityBrand = Symbol('AdmissionCapability');
+const VaultReflectCapabilityBrand = Symbol('VaultReflectCapability');
 
 export interface ReadCapability {
   readonly [ReadCapabilityBrand]: true;
@@ -15,6 +16,14 @@ export interface AdmissionCapability {
   readonly remoteFingerprint: string;
   readonly negotiatedSettingsHash: string;
   readonly admittedAt: Date;
+}
+
+export interface VaultReflectCapability {
+  readonly [VaultReflectCapabilityBrand]: true;
+  readonly baseUrl: URL;
+  readonly databaseName: string;
+  readonly vaultRoot: string;
+  readonly issuedAt: Date;
 }
 
 export function createReadCapability(baseUrl: URL, databaseName: string): ReadCapability {
@@ -42,10 +51,28 @@ export function createAdmissionCapability(
   };
 }
 
+export function createVaultReflectCapability(
+  baseUrl: URL,
+  databaseName: string,
+  vaultRoot: string
+): VaultReflectCapability {
+  return {
+    [VaultReflectCapabilityBrand]: true,
+    baseUrl: new URL(baseUrl.href),
+    databaseName,
+    vaultRoot,
+    issuedAt: new Date(),
+  };
+}
+
 export function isReadCapability(cap: unknown): cap is ReadCapability {
   return Boolean(cap && typeof cap === 'object' && ReadCapabilityBrand in cap);
 }
 
 export function isAdmissionCapability(cap: unknown): cap is AdmissionCapability {
   return Boolean(cap && typeof cap === 'object' && AdmissionCapabilityBrand in cap);
+}
+
+export function isVaultReflectCapability(cap: unknown): cap is VaultReflectCapability {
+  return Boolean(cap && typeof cap === 'object' && VaultReflectCapabilityBrand in cap);
 }
