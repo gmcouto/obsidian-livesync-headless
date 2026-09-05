@@ -294,6 +294,41 @@ export class CouchDbTestHarness {
     return { id, rev, byteLength };
   }
 
+  async seedObfuscatedNote(
+    dbName: string,
+    relativePath: string,
+    body: string,
+    passphrase: string,
+    saltHex: string
+  ): Promise<{ id: string; rev: string; byteLength: number }> {
+    const { path2id_base } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/path'
+    );
+    const { encrypt: encryptHkdf } = await import('octagonal-wheels/encryption/hkdf');
+    const { hexStringToUint8Array } = await import('octagonal-wheels/binary/hex');
+
+    const saltBytes = hexStringToUint8Array(saltHex);
+    const byteLength = new TextEncoder().encode(body).byteLength;
+    const meta = JSON.stringify({
+      path: relativePath,
+      mtime: Date.now(),
+      ctime: Date.now(),
+      size: byteLength,
+    });
+    const encryptedPath = `/\\:${await encryptHkdf(meta, passphrase, saltBytes)}`;
+    const encryptedData = await encryptHkdf(body, passphrase, saltBytes);
+    const id = String(await path2id_base(relativePath, passphrase, true));
+    const { rev } = await this.putDocument(dbName, id, {
+      type: 'notes',
+      path: encryptedPath,
+      data: encryptedData,
+      e_: true,
+      size: 0,
+      deleted: false,
+    });
+    return { id, rev, byteLength };
+  }
+
   async stop(): Promise<void> {
     if (this.container) {
       await this.container.stop();
