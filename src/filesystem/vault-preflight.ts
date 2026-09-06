@@ -129,3 +129,13 @@ export async function preflightVault(
 
   return { ok: true, blocks: [] };
 }
+
+export async function preflightSyncVault(vaultPath: string): Promise<VaultPreflightResult> {
+  await cleanupOrphanStagingFiles(vaultPath);
+  const collected = await collectVaultEntries(vaultPath);
+  if (!Array.isArray(collected)) {
+    return collected;
+  }
+  return { ok: true, blocks: [] };
+}
+
