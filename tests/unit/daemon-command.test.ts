@@ -143,7 +143,7 @@ state:
     expect(exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(stdoutLines.some((msg) => msg.includes('Read-Only (Pull Monitoring)'))).toBe(true);
     expect(stdoutLines.some((msg) => msg.includes('read-only (pull-only) mode'))).toBe(true);
-    expect(stdoutLines.some((msg) => msg.includes('LIVESYNC_WRITE=true'))).toBe(true);
+    expect(stdoutLines.some((msg) => msg.includes('LIVESYNC_MODE=write'))).toBe(true);
   });
 
   it('rejects LIVESYNC_WRITE=true env var with error when no active write grant exists', async () => {
