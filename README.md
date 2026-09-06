@@ -71,8 +71,6 @@ services:
       - LIVESYNC_ENCRYPTION_PASSPHRASE=my_e2ee_passphrase
       - LIVESYNC_STATE_PATH=/data/state.db   # Or omit to use the app default (~/.config/obsidian-livesync-headless/state.db)
       - LIVESYNC_WRITE=false                  # Set to true once write access is armed
-      - LIVESYNC_PERIODIC_SCAN_SEC=300
-      - LIVESYNC_CONCURRENCY=4
 
 volumes:
   livesync-state:                             # Managed by Docker; survives container recreation
