@@ -9,7 +9,7 @@ The MVP advances through six guarded vertical slices: establish structurally rea
 - [x] **Phase 1: Guarded Read-Only Admission** - Run the first real CLI-to-CouchDB integration while proving configuration safety, compatibility, and zero remote mutation. (completed 2026-09-03)
 - [x] **Phase 2: Verified Pull Materialization** - Decode supported LiveSync records and safely materialize a dedicated vault without remote writes. (completed 2026-09-05)
 - [x] **Phase 3: Recoverable Pull Operations** - Make local reflection durable, resumable, quarantined, and repeatably idempotent before any push is allowed. (completed 2026-09-06)
-- [ ] **Phase 4: Explicitly Armed Bidirectional One-Shot** - Converge local and remote file state once through a fresh, scope-bound write grant and preservation-first reconciliation.
+- [x] **Phase 4: Explicitly Armed Bidirectional One-Shot** - Converge local and remote file state once through a fresh, scope-bound write grant and preservation-first reconciliation. (completed 2026-09-06)
 - [ ] **Phase 5: Continuous Convergence Daemon** - Reuse the one-shot safety model for bounded, restart-safe continuous synchronization.
 - [ ] **Phase 6: Packaged Mixed-Client Release Gate** - Ship a single executable only after packaged compatibility, integrity, safety, and mixed-client evidence passes.
 
@@ -150,6 +150,6 @@ Plans:
 | 1. Guarded Read-Only Admission | 3/3 | Complete    | 2026-09-03 |
 | 2. Verified Pull Materialization | 4/4 | Complete    | 2026-09-05 |
 | 3. Recoverable Pull Operations | 4/4 | Complete    | 2026-09-06 |
-| 4. Explicitly Armed Bidirectional One-Shot | 3/4 | In Progress|  |
+| 4. Explicitly Armed Bidirectional One-Shot | 4/4 | Complete    | 2026-09-06 |
 | 5. Continuous Convergence Daemon | 0/TBD | Not started | - |
 | 6. Packaged Mixed-Client Release Gate | 0/TBD | Not started | - |
