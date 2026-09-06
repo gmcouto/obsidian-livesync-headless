@@ -5,7 +5,6 @@ import type { SecretRef } from './schema.js';
 export async function resolveSecret(
   ref: SecretRef | undefined,
   env: NodeJS.ProcessEnv = process.env,
-  fallbackEnvVar?: string,
   baseDir?: string
 ): Promise<string | undefined> {
   if (typeof ref === 'string') {
@@ -30,10 +29,6 @@ export async function resolveSecret(
         throw new Error(`Failed to read secret file '${ref.fromFile}': ${(err as Error).message}`);
       }
     }
-  }
-
-  if (fallbackEnvVar && env[fallbackEnvVar]) {
-    return env[fallbackEnvVar];
   }
 
   return undefined;

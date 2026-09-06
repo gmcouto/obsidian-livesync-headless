@@ -170,7 +170,7 @@ export function negotiateCompatibility(
     blockers.push({
       code: 'AUTHENTICATION_ERROR',
       message: 'Decryption failed: supplied passphrase does not match remote encryption',
-      suggestion: 'Check encryption.passphrase in your YAML configuration or LIVESYNC_PASSPHRASE env var',
+      suggestion: 'Check encryption.passphrase in your YAML configuration or LIVESYNC_ENCRYPTION_PASSPHRASE env var',
     });
   }
 

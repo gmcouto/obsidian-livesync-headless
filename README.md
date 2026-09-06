@@ -43,12 +43,13 @@ docker run -d \
   -e LIVESYNC_COUCHDB_USER="sync_user" \
   -e LIVESYNC_COUCHDB_PASSWORD="secure_couchdb_password" \
   -e LIVESYNC_ENCRYPTION_PASSPHRASE="my_e2ee_passphrase" \
+  -e LIVESYNC_STATE_PATH="/data/state.db" \
   ghcr.io/gmcouto/obsidian-livesync-headless:latest
-# Note: /vault mounts the Obsidian vault; /data is used for storing sync state (.state.db)
+# Note: /vault mounts the Obsidian vault; /data is optional if specifying a custom LIVESYNC_STATE_PATH
 ```
 
 > **Rootless & Non-Root Execution:**
-> The Docker image runs as an unprivileged user (`livesync`, UID/GID `1000:1000`) by default and fully supports rootless Docker, Podman, and custom user IDs via `--user <uid>:<gid>` (e.g. `--user $(id -u):$(id -g)`). Ensure mounted host directories `/path/to/my/vault` and `/path/to/livesync-data` (used for storing sync state) are readable and writable by your host user.
+> The Docker image runs as an unprivileged user (`livesync`, UID/GID `1000:1000`) by default and fully supports rootless Docker, Podman, and custom user IDs via `--user <uid>:<gid>` (e.g. `--user $(id -u):$(id -g)`). Ensure mounted host directories are readable and writable by your host user.
 
 #### Docker Compose Example (`docker-compose.yml`)
 
@@ -61,13 +62,14 @@ services:
     user: "1000:1000"                         # Or match your host UID:GID (e.g., "${UID}:${GID}")
     volumes:
       - /path/to/my/vault:/vault              # Obsidian vault directory
-      - /path/to/livesync-data:/data          # Directory for storing sync state database (.state.db)
+      - /path/to/livesync-data:/data          # Optional custom directory for sync state database
     environment:
       - LIVESYNC_COUCHDB_URL=https://couchdb.example.com
       - LIVESYNC_COUCHDB_DATABASE=obsidian-vault
       - LIVESYNC_COUCHDB_USER=sync_user
       - LIVESYNC_COUCHDB_PASSWORD=secure_couchdb_password
       - LIVESYNC_ENCRYPTION_PASSPHRASE=my_e2ee_passphrase
+      - LIVESYNC_STATE_PATH=/data/state.db   # Or omit to use the app default (~/.config/obsidian-livesync-headless/state.db)
       - LIVESYNC_WRITE=false                  # Set to true once write access is armed
       - LIVESYNC_PERIODIC_SCAN_SEC=300
       - LIVESYNC_CONCURRENCY=4
@@ -114,28 +116,28 @@ node dist/cli/index.js --help
 
 `obsidian-livesync-headless` supports flexible configuration with strict precedence:
 1. **CLI Flags** (e.g., `--write`, `--periodic-scan-sec`, `--concurrency`)
-2. **Environment Variables** (`LIVESYNC_*` or fallback aliases)
+2. **Environment Variables** (`LIVESYNC_*`)
 3. **YAML Configuration File** (`-c, --config <path>`)
 
 When environment variables are provided, the `-c, --config` parameter is optional.
 
 ### Environment Variable Reference
 
-| Environment Variable | Fallback Alias | Config Target | Type / Description | Default / Example |
-|---|---|---|---|---|
-| `LIVESYNC_COUCHDB_URL` | `COUCHDB_URL` | `remote.url` | Valid HTTP/S CouchDB endpoint URL (credentials forbidden in URL) | `https://couchdb.example.com` |
-| `LIVESYNC_COUCHDB_DATABASE` | `LIVESYNC_DATABASE_NAME`, `COUCHDB_DATABASE` | `remote.database` | CouchDB database name | `obsidian-vault` |
-| `LIVESYNC_COUCHDB_USER` | `LIVESYNC_COUCHDB_USERNAME`, `COUCHDB_USER` | `remote.username` | CouchDB authentication username | `sync_user` |
-| `LIVESYNC_COUCHDB_PASSWORD` | `COUCHDB_PASSWORD` | `remote.password` | CouchDB authentication password (auto-redacted) | `secretpassword` |
-| `LIVESYNC_VAULT_PATH` | `VAULT_PATH` | `vault.path` | Local filesystem vault path | `/vault` (in Docker) |
-| `LIVESYNC_VAULT_DEDICATED` | — | `vault.dedicated` | Boolean (`true`/`1` or `false`/`0`) indicating dedicated folder | `false` |
-| `LIVESYNC_DATABASE_PATH` | `LIVESYNC_STATE_PATH` | `state.path` | Local SQLite state database path | `/data/.state.db` (in Docker) |
-| `LIVESYNC_ENCRYPTION_PASSPHRASE` | `LIVESYNC_PASSPHRASE` | `encryption.passphrase` | E2EE encryption passphrase (auto-redacted) | `my-e2ee-pass` |
-| `LIVESYNC_ENCRYPTION_ENABLED` | — | `encryption.enabled` | Enable/disable E2EE (defaults to `true` if passphrase set) | `false` |
-| `LIVESYNC_WRITE` | `LIVESYNC_WRITE_MODE` | `cli.write` | Enable bidirectional synchronization in daemon mode | `false` |
-| `LIVESYNC_PERIODIC_SCAN_SEC` | — | `cli.periodicScanSec` | Interval in seconds for full reconciliation scan | `300` |
-| `LIVESYNC_CONCURRENCY` | — | `cli.concurrency` | Maximum concurrent file workers | `4` |
-| `LIVESYNC_DEBOUNCE_MS` | — | `cli.debounceMs` | Watcher debounce window in milliseconds | `300` |
+| Environment Variable | Config Target | Type / Description | Default / Example |
+|---|---|---|---|
+| `LIVESYNC_COUCHDB_URL` | `remote.url` | Valid HTTP/S CouchDB endpoint URL (credentials forbidden in URL) | `https://couchdb.example.com` |
+| `LIVESYNC_COUCHDB_DATABASE` | `remote.database` | CouchDB database name | `obsidian-vault` |
+| `LIVESYNC_COUCHDB_USER` | `remote.username` | CouchDB authentication username | `sync_user` |
+| `LIVESYNC_COUCHDB_PASSWORD` | `remote.password` | CouchDB authentication password (auto-redacted) | `secretpassword` |
+| `LIVESYNC_VAULT_PATH` | `vault.path` | Local filesystem vault path | `/vault` (in Docker) |
+| `LIVESYNC_VAULT_DEDICATED` | `vault.dedicated` | Boolean (`true`/`1` or `false`/`0`) indicating dedicated folder | `false` |
+| `LIVESYNC_STATE_PATH` | `state.path` | Local SQLite state database path | `~/.config/obsidian-livesync-headless/state.db` |
+| `LIVESYNC_ENCRYPTION_PASSPHRASE` | `encryption.passphrase` | E2EE encryption passphrase (auto-redacted) | `my-e2ee-pass` |
+| `LIVESYNC_ENCRYPTION_ENABLED` | `encryption.enabled` | Enable/disable E2EE (defaults to `true` if passphrase set) | `false` |
+| `LIVESYNC_WRITE` | `cli.write` | Enable bidirectional synchronization in daemon mode | `false` |
+| `LIVESYNC_PERIODIC_SCAN_SEC` | `cli.periodicScanSec` | Interval in seconds for full reconciliation scan | `300` |
+| `LIVESYNC_CONCURRENCY` | `cli.concurrency` | Maximum concurrent file workers | `4` |
+| `LIVESYNC_DEBOUNCE_MS` | `cli.debounceMs` | Watcher debounce window in milliseconds | `300` |
 
 ---
 
@@ -152,29 +154,29 @@ remote:
   database: "obsidian-vault"
   username: "obsidian_sync_user"
   password:
-    fromEnv: "COUCHDB_PASSWORD"     # Or: { fromFile: "/run/secrets/couchdb_password" }
+    fromEnv: "LIVESYNC_COUCHDB_PASSWORD"     # Or: { fromFile: "/run/secrets/couchdb_password" }
 
 # Local Obsidian Vault Configuration
 vault:
   path: "/home/user/notes"
   dedicated: false                  # Set to true if folder is dedicated solely to LiveSync
 
-# Local Durable SQLite State Path (optional, defaults to <vault>/.obsidian-livesync-state/state.db)
+# Local Durable SQLite State Path (optional, defaults to ~/.config/obsidian-livesync-headless/state.db)
 state:
-  path: "/home/user/.local/share/obsidian-livesync-headless/state.db"
+  path: "/home/user/.config/obsidian-livesync-headless/state.db"
 
 # End-to-End Encryption (E2EE) Configuration (must match remote vault settings)
 encryption:
   enabled: true
   passphrase:
-    fromEnv: "LIVESYNC_PASSPHRASE"  # Or: { fromFile: "/run/secrets/livesync_passphrase" }
+    fromEnv: "LIVESYNC_ENCRYPTION_PASSPHRASE"  # Or: { fromFile: "/run/secrets/livesync_passphrase" }
 ```
 
 ### Secret Resolution Schema
 
 | Secret Type | Example Syntax | Behavior |
 |---|---|---|
-| **Environment Variable** | `password: { fromEnv: "COUCHDB_PASSWORD" }` | Reads `process.env.COUCHDB_PASSWORD` at runtime. |
+| **Environment Variable** | `password: { fromEnv: "LIVESYNC_COUCHDB_PASSWORD" }` | Reads `process.env.LIVESYNC_COUCHDB_PASSWORD` at runtime. |
 | **Secret File** | `passphrase: { fromFile: "/secrets/e2ee.key" }` | Reads and trims content from `/secrets/e2ee.key`. |
 | **Inline String** | `password: "my-secret-password"` | Plain string (discouraged for version-controlled configs). |
 
@@ -326,8 +328,8 @@ Wants=network-online.target
 Type=simple
 User=syncuser
 Group=syncuser
-Environment="COUCHDB_PASSWORD=your_secure_password"
-Environment="LIVESYNC_PASSPHRASE=your_encryption_passphrase"
+Environment="LIVESYNC_COUCHDB_PASSWORD=your_secure_password"
+Environment="LIVESYNC_ENCRYPTION_PASSPHRASE=your_encryption_passphrase"
 ExecStart=/usr/local/bin/obsidian-livesync-headless daemon --config /etc/obsidian-livesync/livesync.yaml --write
 Restart=on-failure
 RestartSec=10s
@@ -335,7 +337,7 @@ RestartSec=10s
 # Hardening
 ProtectSystem=full
 ProtectHome=read-only
-ReadWritePaths=/home/syncuser/vault /home/syncuser/.local/share/obsidian-livesync-headless
+ReadWritePaths=/home/syncuser/vault /home/syncuser/.config/obsidian-livesync-headless
 
 [Install]
 WantedBy=multi-user.target

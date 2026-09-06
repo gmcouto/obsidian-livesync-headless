@@ -167,9 +167,7 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
 
     const hasEnvConfig = Boolean(
       process.env.LIVESYNC_COUCHDB_URL ||
-        process.env.COUCHDB_URL ||
-        process.env.LIVESYNC_VAULT_PATH ||
-        process.env.VAULT_PATH
+        process.env.LIVESYNC_VAULT_PATH
     );
 
     if (

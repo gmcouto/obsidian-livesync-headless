@@ -30,7 +30,7 @@ describe('Environment-Driven Configuration Loader', () => {
       LIVESYNC_COUCHDB_USER: 'admin',
       LIVESYNC_COUCHDB_PASSWORD: 'supersecretremote',
       LIVESYNC_VAULT_PATH: vaultDir,
-      LIVESYNC_DATABASE_PATH: path.join(stateDir, 'state.db'),
+      LIVESYNC_STATE_PATH: path.join(stateDir, 'state.db'),
       LIVESYNC_ENCRYPTION_PASSPHRASE: 'supersecrete2ee',
       LIVESYNC_VAULT_DEDICATED: 'true',
     };
@@ -53,27 +53,32 @@ describe('Environment-Driven Configuration Loader', () => {
     );
   });
 
-  it('supports backward-compatible fallback environment variable aliases', async () => {
+  it('does not recognize removed fallback environment variable aliases', async () => {
     const env: NodeJS.ProcessEnv = {
       COUCHDB_URL: 'http://127.0.0.1:5984',
       COUCHDB_DATABASE: 'alias-db',
       COUCHDB_USER: 'alias-user',
       COUCHDB_PASSWORD: 'alias-password',
       VAULT_PATH: vaultDir,
-      LIVESYNC_STATE_PATH: path.join(stateDir, 'alias-state.db'),
       LIVESYNC_PASSPHRASE: 'alias-passphrase',
     };
 
-    const config = await loadConfig(undefined, env);
+    await expect(loadConfig(undefined, env)).rejects.toThrow(ConfigValidationError);
+  });
 
-    expect(config.remote.url).toBe('http://127.0.0.1:5984');
-    expect(config.remote.database).toBe('alias-db');
-    expect(config.remote.username).toBe('alias-user');
-    expect(config.resolvedSecrets.remotePassword).toBe('alias-password');
-    expect(config.resolvedVaultPath).toBe(path.resolve(vaultDir));
-    expect(config.resolvedStatePath).toBe(path.resolve(path.join(stateDir, 'alias-state.db')));
-    expect(config.encryption?.enabled).toBe(true);
-    expect(config.resolvedSecrets.encryptionPassphrase).toBe('alias-passphrase');
+  it('uses app default state path when LIVESYNC_STATE_PATH is omitted', async () => {
+    const env: NodeJS.ProcessEnv = {
+      LIVESYNC_COUCHDB_URL: 'http://127.0.0.1:5984',
+      LIVESYNC_COUCHDB_DATABASE: 'my-vault-db',
+      LIVESYNC_VAULT_PATH: vaultDir,
+      HOME: tempDir,
+    };
+
+    const config = await loadConfig(undefined, env);
+    const expectedDefault = path.resolve(
+      path.join(tempDir, '.config/obsidian-livesync-headless/state.db')
+    );
+    expect(config.resolvedStatePath).toBe(expectedDefault);
   });
 
   it('overlays environment variables on top of an existing YAML configuration file', async () => {
@@ -119,7 +124,7 @@ state:
       LIVESYNC_COUCHDB_URL: 'http://127.0.0.1:5984',
       LIVESYNC_COUCHDB_DATABASE: 'test-db',
       LIVESYNC_VAULT_PATH: vaultDir,
-      LIVESYNC_DATABASE_PATH: path.join(stateDir, 'state.db'),
+      LIVESYNC_STATE_PATH: path.join(stateDir, 'state.db'),
     };
 
     // Test "true" / "1" / "false" / "0"
@@ -141,7 +146,7 @@ state:
       LIVESYNC_COUCHDB_URL: 'http://127.0.0.1:5984',
       LIVESYNC_COUCHDB_DATABASE: 'test-db',
       LIVESYNC_VAULT_PATH: vaultDir,
-      LIVESYNC_DATABASE_PATH: path.join(stateDir, 'state.db'),
+      LIVESYNC_STATE_PATH: path.join(stateDir, 'state.db'),
       LIVESYNC_WRITE: 'true',
       LIVESYNC_PERIODIC_SCAN_SEC: '600',
       LIVESYNC_CONCURRENCY: '8',
@@ -176,7 +181,7 @@ state:
       loadConfig(undefined, {
         ...baseEnv,
         LIVESYNC_VAULT_PATH: vaultDir,
-        LIVESYNC_DATABASE_PATH: path.join(vaultDir, 'nested-state'),
+        LIVESYNC_STATE_PATH: path.join(vaultDir, 'nested-state'),
       })
     ).rejects.toThrow(/Vault directory and state directory must not overlap/);
   });

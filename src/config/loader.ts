@@ -39,13 +39,11 @@ function parseIntegerEnv(val: string | undefined): number | undefined {
 function extractEnvConfig(env: NodeJS.ProcessEnv): Record<string, any> {
   const envConfig: Record<string, any> = {};
 
-  // Remote mapping & aliases
-  const remoteUrl = env.LIVESYNC_COUCHDB_URL ?? env.COUCHDB_URL;
-  const remoteDatabase =
-    env.LIVESYNC_COUCHDB_DATABASE ?? env.LIVESYNC_DATABASE_NAME ?? env.COUCHDB_DATABASE;
-  const remoteUsername =
-    env.LIVESYNC_COUCHDB_USER ?? env.LIVESYNC_COUCHDB_USERNAME ?? env.COUCHDB_USER;
-  const remotePassword = env.LIVESYNC_COUCHDB_PASSWORD ?? env.COUCHDB_PASSWORD;
+  // Remote mapping
+  const remoteUrl = env.LIVESYNC_COUCHDB_URL;
+  const remoteDatabase = env.LIVESYNC_COUCHDB_DATABASE;
+  const remoteUsername = env.LIVESYNC_COUCHDB_USER;
+  const remotePassword = env.LIVESYNC_COUCHDB_PASSWORD;
 
   const remote: Record<string, any> = {};
   if (remoteUrl !== undefined && remoteUrl !== '') remote.url = remoteUrl;
@@ -54,8 +52,8 @@ function extractEnvConfig(env: NodeJS.ProcessEnv): Record<string, any> {
   if (remotePassword !== undefined && remotePassword !== '') remote.password = remotePassword;
   if (Object.keys(remote).length > 0) envConfig.remote = remote;
 
-  // Vault mapping & aliases
-  const vaultPath = env.LIVESYNC_VAULT_PATH ?? env.VAULT_PATH;
+  // Vault mapping
+  const vaultPath = env.LIVESYNC_VAULT_PATH;
   const vaultDedicated = parseBooleanEnv(env.LIVESYNC_VAULT_DEDICATED);
 
   const vault: Record<string, any> = {};
@@ -63,14 +61,14 @@ function extractEnvConfig(env: NodeJS.ProcessEnv): Record<string, any> {
   if (vaultDedicated !== undefined) vault.dedicated = vaultDedicated;
   if (Object.keys(vault).length > 0) envConfig.vault = vault;
 
-  // State mapping & aliases
-  const statePath = env.LIVESYNC_DATABASE_PATH ?? env.LIVESYNC_STATE_PATH;
+  // State mapping
+  const statePath = env.LIVESYNC_STATE_PATH;
   const state: Record<string, any> = {};
   if (statePath !== undefined && statePath !== '') state.path = statePath;
   if (Object.keys(state).length > 0) envConfig.state = state;
 
-  // Encryption mapping & aliases
-  const passphrase = env.LIVESYNC_ENCRYPTION_PASSPHRASE ?? env.LIVESYNC_PASSPHRASE;
+  // Encryption mapping
+  const passphrase = env.LIVESYNC_ENCRYPTION_PASSPHRASE;
   const encryptionEnabled = parseBooleanEnv(env.LIVESYNC_ENCRYPTION_ENABLED);
 
   const encryption: Record<string, any> = {};
@@ -83,7 +81,7 @@ function extractEnvConfig(env: NodeJS.ProcessEnv): Record<string, any> {
   if (Object.keys(encryption).length > 0) envConfig.encryption = encryption;
 
   // CLI / Daemon defaults
-  const cliWrite = parseBooleanEnv(env.LIVESYNC_WRITE ?? env.LIVESYNC_WRITE_MODE);
+  const cliWrite = parseBooleanEnv(env.LIVESYNC_WRITE);
   const periodicScanSec = parseIntegerEnv(env.LIVESYNC_PERIODIC_SCAN_SEC);
   const concurrency = parseIntegerEnv(env.LIVESYNC_CONCURRENCY);
   const debounceMs = parseIntegerEnv(env.LIVESYNC_DEBOUNCE_MS);
@@ -182,7 +180,6 @@ export async function loadConfig(
     remotePassword = await resolveSecret(
       config.remote.password,
       env,
-      'COUCHDB_PASSWORD',
       configDir
     );
   } catch (err) {
@@ -194,7 +191,6 @@ export async function loadConfig(
     encryptionPassphrase = await resolveSecret(
       config.encryption?.passphrase,
       env,
-      'LIVESYNC_PASSPHRASE',
       configDir
     );
   } catch (err) {
@@ -215,7 +211,7 @@ export async function loadConfig(
   const vaultPath = path.resolve(config.vault.path);
   const defaultStateBase = env.HOME ? path.resolve(env.HOME) : os.homedir();
   const defaultStateDir = path.resolve(
-    path.join(defaultStateBase, '.local/share/obsidian-livesync-headless')
+    path.join(defaultStateBase, '.config/obsidian-livesync-headless/state.db')
   );
   const statePath = config.state?.path ? path.resolve(config.state.path) : defaultStateDir;
 

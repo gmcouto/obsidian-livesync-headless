@@ -28,7 +28,7 @@ describe('CLI Environment Variable Dispatch Tests (ENV-01)', () => {
     process.env.LIVESYNC_COUCHDB_USER = 'admin';
     process.env.LIVESYNC_COUCHDB_PASSWORD = 'password';
     process.env.LIVESYNC_VAULT_PATH = vaultDir;
-    process.env.LIVESYNC_DATABASE_PATH = stateDbPath;
+    process.env.LIVESYNC_STATE_PATH = stateDbPath;
   });
 
   afterEach(async () => {

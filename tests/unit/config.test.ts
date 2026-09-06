@@ -152,8 +152,8 @@ state:
     expect(config.resolvedSecrets.remotePassword).toBe('super-file-secret');
   });
 
-  it('resolves fallback environment variables COUCHDB_PASSWORD and LIVESYNC_PASSPHRASE', async () => {
-    const configPath = path.join(tempDir, 'fallback-env.yaml');
+  it('resolves canonical environment variables LIVESYNC_COUCHDB_PASSWORD and LIVESYNC_ENCRYPTION_PASSPHRASE', async () => {
+    const configPath = path.join(tempDir, 'canonical-env.yaml');
     const vaultPath = path.join(tempDir, 'my-vault');
     const statePath = path.join(tempDir, 'my-state');
 
@@ -173,13 +173,13 @@ encryption:
     );
 
     const env = {
-      COUCHDB_PASSWORD: 'fallback-couch-pass',
-      LIVESYNC_PASSPHRASE: 'fallback-livesync-pass',
+      LIVESYNC_COUCHDB_PASSWORD: 'canonical-couch-pass',
+      LIVESYNC_ENCRYPTION_PASSPHRASE: 'canonical-livesync-pass',
     };
 
     const config = await loadConfig(configPath, env);
-    expect(config.resolvedSecrets.remotePassword).toBe('fallback-couch-pass');
-    expect(config.resolvedSecrets.encryptionPassphrase).toBe('fallback-livesync-pass');
+    expect(config.resolvedSecrets.remotePassword).toBe('canonical-couch-pass');
+    expect(config.resolvedSecrets.encryptionPassphrase).toBe('canonical-livesync-pass');
   });
 
   it('throws ConfigValidationError if fromEnv variable is missing', async () => {

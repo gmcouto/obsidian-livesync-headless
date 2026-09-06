@@ -34,7 +34,7 @@ describe('Docker Container Integration Tests (DOCKER-01, DOCKER-02, DOCKER-03)',
     const envVars = config.Env as string[];
     expect(envVars).toContain('HOME=/home/livesync');
     expect(envVars).toContain('LIVESYNC_VAULT_PATH=/vault');
-    expect(envVars).toContain('LIVESYNC_DATABASE_PATH=/data/.state.db');
+    expect(envVars).toContain('LIVESYNC_STATE_PATH=/data/state.db');
   });
 
   it('runs as non-root user livesync by default and supports arbitrary UID/GID rootless execution', async () => {
@@ -107,7 +107,7 @@ describe('Docker Container Integration Tests (DOCKER-01, DOCKER-02, DOCKER-03)',
         '-e',
         'LIVESYNC_VAULT_PATH=/vault',
         '-e',
-        'LIVESYNC_DATABASE_PATH=/data/.state.db',
+        'LIVESYNC_STATE_PATH=/data/state.db',
         IMAGE_TAG,
       ]);
       expect.fail('Expected container execution to exit with error on unreachable host');

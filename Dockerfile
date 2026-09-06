@@ -44,7 +44,7 @@ RUN mkdir -p /vault /data /home/livesync && \
 # Default environment configuration
 ENV HOME=/home/livesync \
     LIVESYNC_VAULT_PATH=/vault \
-    LIVESYNC_DATABASE_PATH=/data/.state.db
+    LIVESYNC_STATE_PATH=/data/state.db
 
 USER livesync
 
