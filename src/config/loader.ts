@@ -21,39 +21,145 @@ export class ConfigValidationError extends Error {
   }
 }
 
+function parseBooleanEnv(val: string | undefined): boolean | undefined {
+  if (val === undefined || val === '') return undefined;
+  const lower = val.trim().toLowerCase();
+  if (lower === 'true' || lower === '1' || lower === 'yes' || lower === 'on') return true;
+  if (lower === 'false' || lower === '0' || lower === 'no' || lower === 'off') return false;
+  return undefined;
+}
+
+function parseIntegerEnv(val: string | undefined): number | undefined {
+  if (val === undefined || val === '') return undefined;
+  const parsed = Number(val.trim());
+  if (Number.isInteger(parsed)) return parsed;
+  return NaN;
+}
+
+function extractEnvConfig(env: NodeJS.ProcessEnv): Record<string, any> {
+  const envConfig: Record<string, any> = {};
+
+  // Remote mapping & aliases
+  const remoteUrl = env.LIVESYNC_COUCHDB_URL ?? env.COUCHDB_URL;
+  const remoteDatabase =
+    env.LIVESYNC_COUCHDB_DATABASE ?? env.LIVESYNC_DATABASE_NAME ?? env.COUCHDB_DATABASE;
+  const remoteUsername =
+    env.LIVESYNC_COUCHDB_USER ?? env.LIVESYNC_COUCHDB_USERNAME ?? env.COUCHDB_USER;
+  const remotePassword = env.LIVESYNC_COUCHDB_PASSWORD ?? env.COUCHDB_PASSWORD;
+
+  const remote: Record<string, any> = {};
+  if (remoteUrl !== undefined && remoteUrl !== '') remote.url = remoteUrl;
+  if (remoteDatabase !== undefined && remoteDatabase !== '') remote.database = remoteDatabase;
+  if (remoteUsername !== undefined && remoteUsername !== '') remote.username = remoteUsername;
+  if (remotePassword !== undefined && remotePassword !== '') remote.password = remotePassword;
+  if (Object.keys(remote).length > 0) envConfig.remote = remote;
+
+  // Vault mapping & aliases
+  const vaultPath = env.LIVESYNC_VAULT_PATH ?? env.VAULT_PATH;
+  const vaultDedicated = parseBooleanEnv(env.LIVESYNC_VAULT_DEDICATED);
+
+  const vault: Record<string, any> = {};
+  if (vaultPath !== undefined && vaultPath !== '') vault.path = vaultPath;
+  if (vaultDedicated !== undefined) vault.dedicated = vaultDedicated;
+  if (Object.keys(vault).length > 0) envConfig.vault = vault;
+
+  // State mapping & aliases
+  const statePath = env.LIVESYNC_DATABASE_PATH ?? env.LIVESYNC_STATE_PATH;
+  const state: Record<string, any> = {};
+  if (statePath !== undefined && statePath !== '') state.path = statePath;
+  if (Object.keys(state).length > 0) envConfig.state = state;
+
+  // Encryption mapping & aliases
+  const passphrase = env.LIVESYNC_ENCRYPTION_PASSPHRASE ?? env.LIVESYNC_PASSPHRASE;
+  const encryptionEnabled = parseBooleanEnv(env.LIVESYNC_ENCRYPTION_ENABLED);
+
+  const encryption: Record<string, any> = {};
+  if (passphrase !== undefined && passphrase !== '') {
+    encryption.passphrase = passphrase;
+    encryption.enabled = encryptionEnabled ?? true;
+  } else if (encryptionEnabled !== undefined) {
+    encryption.enabled = encryptionEnabled;
+  }
+  if (Object.keys(encryption).length > 0) envConfig.encryption = encryption;
+
+  // CLI / Daemon defaults
+  const cliWrite = parseBooleanEnv(env.LIVESYNC_WRITE ?? env.LIVESYNC_WRITE_MODE);
+  const periodicScanSec = parseIntegerEnv(env.LIVESYNC_PERIODIC_SCAN_SEC);
+  const concurrency = parseIntegerEnv(env.LIVESYNC_CONCURRENCY);
+  const debounceMs = parseIntegerEnv(env.LIVESYNC_DEBOUNCE_MS);
+
+  const cli: Record<string, any> = {};
+  if (cliWrite !== undefined) cli.write = cliWrite;
+  if (periodicScanSec !== undefined) cli.periodicScanSec = periodicScanSec;
+  if (concurrency !== undefined) cli.concurrency = concurrency;
+  if (debounceMs !== undefined) cli.debounceMs = debounceMs;
+  if (Object.keys(cli).length > 0) envConfig.cli = cli;
+
+  return envConfig;
+}
+
+function deepMerge(target: Record<string, any>, source: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = { ...target };
+  for (const [key, value] of Object.entries(source)) {
+    if (
+      value !== null &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      typeof result[key] === 'object' &&
+      result[key] !== null &&
+      !Array.isArray(result[key])
+    ) {
+      result[key] = deepMerge(result[key], value);
+    } else if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 export async function loadConfig(
-  configFilePath: string,
+  configFilePath?: string,
   env: NodeJS.ProcessEnv = process.env,
   redactor?: SecretRedactor
 ): Promise<LoadedConfig> {
-  const resolvedConfigPath = path.resolve(configFilePath);
-  let fileContent: string;
+  let rawConfig: Record<string, any>;
+  let configDir: string;
 
-  try {
-    fileContent = await fs.readFile(resolvedConfigPath, 'utf-8');
-  } catch (err) {
-    throw new ConfigValidationError(
-      `Failed to read configuration file '${configFilePath}': ${(err as Error).message}`
-    );
+  const envConfig = extractEnvConfig(env);
+
+  if (configFilePath) {
+    const resolvedConfigPath = path.resolve(configFilePath);
+    let fileContent: string;
+
+    try {
+      fileContent = await fs.readFile(resolvedConfigPath, 'utf-8');
+    } catch (err) {
+      throw new ConfigValidationError(
+        `Failed to read configuration file '${configFilePath}': ${(err as Error).message}`
+      );
+    }
+
+    // Parse YAML strictly
+    const doc = yaml.parseDocument(fileContent, { prettyErrors: true });
+    if (doc.errors && doc.errors.length > 0) {
+      const errorMessages = doc.errors.map((e) => e.message);
+      throw new ConfigValidationError(
+        `YAML syntax error in '${configFilePath}': ${errorMessages.join('; ')}`,
+        errorMessages
+      );
+    }
+
+    const rawObj = doc.toJS();
+    if (!rawObj || typeof rawObj !== 'object' || Array.isArray(rawObj)) {
+      throw new ConfigValidationError('Configuration must be a YAML mapping');
+    }
+
+    rawConfig = deepMerge(rawObj as Record<string, any>, envConfig);
+    configDir = path.dirname(resolvedConfigPath);
+  } else {
+    rawConfig = envConfig;
+    configDir = process.cwd();
   }
-
-  // Parse YAML strictly
-  const doc = yaml.parseDocument(fileContent, { prettyErrors: true });
-  if (doc.errors && doc.errors.length > 0) {
-    const errorMessages = doc.errors.map((e) => e.message);
-    throw new ConfigValidationError(
-      `YAML syntax error in '${configFilePath}': ${errorMessages.join('; ')}`,
-      errorMessages
-    );
-  }
-
-  const rawObj = doc.toJS();
-  if (!rawObj || typeof rawObj !== 'object' || Array.isArray(rawObj)) {
-    throw new ConfigValidationError('Configuration must be a YAML mapping');
-  }
-
-  const rawConfig = rawObj as Record<string, any>;
-  const configDir = path.dirname(resolvedConfigPath);
 
   // Validate strict schema structure before resolving or path checking
   const parseResult = LiveSyncConfigSchema.safeParse(rawConfig);

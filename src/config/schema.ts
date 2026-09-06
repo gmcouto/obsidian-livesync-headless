@@ -53,12 +53,22 @@ export const EncryptionConfigSchema = z
   })
   .strict();
 
+export const CliConfigSchema = z
+  .object({
+    write: z.boolean().default(false),
+    periodicScanSec: z.number().int().positive().optional(),
+    concurrency: z.number().int().positive().optional(),
+    debounceMs: z.number().int().positive().optional(),
+  })
+  .strict();
+
 export const LiveSyncConfigSchema = z
   .object({
     remote: CouchDbConfigSchema,
     vault: VaultConfigSchema,
     state: StateConfigSchema.default({}),
     encryption: EncryptionConfigSchema.optional(),
+    cli: CliConfigSchema.optional(),
   })
   .strict();
 
@@ -67,6 +77,7 @@ export type CouchDbConfig = z.infer<typeof CouchDbConfigSchema>;
 export type VaultConfig = z.infer<typeof VaultConfigSchema>;
 export type StateConfig = z.infer<typeof StateConfigSchema>;
 export type EncryptionConfig = z.infer<typeof EncryptionConfigSchema>;
+export type CliConfig = z.infer<typeof CliConfigSchema>;
 export type LiveSyncConfig = z.infer<typeof LiveSyncConfigSchema>;
 
 export interface ResolvedSecrets {
