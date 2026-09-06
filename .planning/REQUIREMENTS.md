@@ -43,10 +43,10 @@
 - [x] **SYNC-02**: User's local file creations and edits extend a proven LiveSync revision base and are encoded with the negotiated metadata, encryption, compression, and chunk conventions.
 - [x] **SYNC-03**: User's changed file metadata becomes visible remotely only after every referenced chunk write has succeeded and every CouchDB write result has been validated.
 - [x] **SYNC-04**: User's intentional local file deletion creates a LiveSync-compatible logical-deletion child of the proven displayed revision without using purge or ordinary CouchDB document deletion.
-- [ ] **SYNC-05**: User's case-only rename remains in the same revision tree, while a cross-path rename stores and verifies the target before logically deleting only the proven source branch.
-- [ ] **SYNC-06**: User's byte-identical conflict leaves can be collapsed safely, while ambiguous ancestry, delete-versus-modify, differing binary content, missing bodies, and unrelated branches remain preserved and reported.
-- [ ] **SYNC-07**: User's unsynchronized local content is preserved when its bytes cannot be matched to exactly one available remote revision.
-- [ ] **SYNC-08**: User can run bidirectional synchronization in an enforceable dry-run mode that exposes planned creates, updates, logical deletions, quarantines, conflicts, skips, and blockers without write capabilities.
+- [x] **SYNC-05**: User's case-only rename remains in the same revision tree, while a cross-path rename stores and verifies the target before logically deleting only the proven source branch.
+- [x] **SYNC-06**: User's byte-identical conflict leaves can be collapsed safely, while ambiguous ancestry, delete-versus-modify, differing binary content, missing bodies, and unrelated branches remain preserved and reported.
+- [x] **SYNC-07**: User's unsynchronized local content is preserved when its bytes cannot be matched to exactly one available remote revision.
+- [x] **SYNC-08**: User can run bidirectional synchronization in an enforceable dry-run mode that exposes planned creates, updates, logical deletions, quarantines, conflicts, skips, and blockers without write capabilities.
 - [ ] **SYNC-09**: User can rerun one-shot synchronization after success, interruption, or transient failure without duplicate revisions, lost branches, or unsafe repeated side effects.
 
 ### Daemon Operation
@@ -147,10 +147,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SYNC-02 | Phase 4 | Complete |
 | SYNC-03 | Phase 4 | Complete |
 | SYNC-04 | Phase 4 | Complete |
-| SYNC-05 | Phase 4 | Pending |
-| SYNC-06 | Phase 4 | Pending |
-| SYNC-07 | Phase 4 | Pending |
-| SYNC-08 | Phase 4 | Pending |
+| SYNC-05 | Phase 4 | Complete |
+| SYNC-06 | Phase 4 | Complete |
+| SYNC-07 | Phase 4 | Complete |
+| SYNC-08 | Phase 4 | Complete |
 | SYNC-09 | Phase 4 | Pending |
 | DAEM-01 | Phase 5 | Pending |
 | DAEM-02 | Phase 5 | Pending |
