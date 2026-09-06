@@ -1,0 +1,44 @@
+# ==============================================================================
+# Stage 1: Build & Package Standalone SEA Executable
+# ==============================================================================
+FROM node:24-bookworm-slim AS builder
+
+WORKDIR /app
+
+# Separate dependency install for layer caching
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Copy sources and build tools
+COPY tsconfig.json ./
+COPY src/ ./src/
+COPY scripts/ ./scripts/
+
+# Build standalone Single-Executable Application
+RUN npm run build:sea
+
+# ==============================================================================
+# Stage 2: Minimal Distributable Runtime Image
+# ==============================================================================
+FROM debian:bookworm-slim AS runner
+
+# Install SSL root certificates for HTTPS CouchDB remotes and timezone data
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates tzdata && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy standalone binary from builder stage
+COPY --from=builder /app/dist/obsidian-livesync-headless /usr/local/bin/obsidian-livesync-headless
+RUN chmod +x /usr/local/bin/obsidian-livesync-headless
+
+# Create default mount directories
+RUN mkdir -p /vault /data
+
+# Default environment configuration
+ENV LIVESYNC_VAULT_PATH=/vault \
+    LIVESYNC_DATABASE_PATH=/data/.state.db
+
+VOLUME ["/vault", "/data"]
+
+ENTRYPOINT ["/usr/local/bin/obsidian-livesync-headless"]
+CMD ["daemon"]

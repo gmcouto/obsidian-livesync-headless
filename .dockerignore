@@ -1,0 +1,10 @@
+.git
+.planning
+node_modules
+dist
+tests
+coverage
+.env*
+*.log
+.DS_Store
+.agents
