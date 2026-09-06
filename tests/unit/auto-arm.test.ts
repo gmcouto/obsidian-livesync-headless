@@ -307,7 +307,42 @@ describe('AutoArmCoordinator & LIVESYNC_WRITE=auto-arm', () => {
   });
 
   describe('Configuration and CLI Parsing for auto-arm', () => {
-    it('parses LIVESYNC_WRITE=auto-arm from environment variables', async () => {
+    it('parses LIVESYNC_MODE=auto-arm from environment variables', async () => {
+      const config = await loadConfig(undefined, {
+        LIVESYNC_COUCHDB_URL: 'http://127.0.0.1:5984',
+        LIVESYNC_COUCHDB_DATABASE: 'testdb',
+        LIVESYNC_VAULT_PATH: vaultRoot,
+        LIVESYNC_STATE_PATH: statePath,
+        LIVESYNC_MODE: 'auto-arm',
+      });
+
+      expect(config.cli?.write).toBe('auto-arm');
+      expect(config.cli?.autoArm).toBe(true);
+    });
+
+    it('parses LIVESYNC_MODE=write and LIVESYNC_MODE=read-only', async () => {
+      const writeConfig = await loadConfig(undefined, {
+        LIVESYNC_COUCHDB_URL: 'http://127.0.0.1:5984',
+        LIVESYNC_COUCHDB_DATABASE: 'testdb',
+        LIVESYNC_VAULT_PATH: vaultRoot,
+        LIVESYNC_STATE_PATH: statePath,
+        LIVESYNC_MODE: 'write',
+      });
+      expect(writeConfig.cli?.write).toBe(true);
+      expect(writeConfig.cli?.autoArm).toBe(false);
+
+      const roConfig = await loadConfig(undefined, {
+        LIVESYNC_COUCHDB_URL: 'http://127.0.0.1:5984',
+        LIVESYNC_COUCHDB_DATABASE: 'testdb',
+        LIVESYNC_VAULT_PATH: vaultRoot,
+        LIVESYNC_STATE_PATH: statePath,
+        LIVESYNC_MODE: 'read-only',
+      });
+      expect(roConfig.cli?.write).toBe(false);
+      expect(roConfig.cli?.autoArm).toBe(false);
+    });
+
+    it('supports backward compatible LIVESYNC_WRITE=auto-arm', async () => {
       const config = await loadConfig(undefined, {
         LIVESYNC_COUCHDB_URL: 'http://127.0.0.1:5984',
         LIVESYNC_COUCHDB_DATABASE: 'testdb',
@@ -316,19 +351,6 @@ describe('AutoArmCoordinator & LIVESYNC_WRITE=auto-arm', () => {
         LIVESYNC_WRITE: 'auto-arm',
       });
 
-      expect(config.cli?.write).toBe('auto-arm');
-    });
-
-    it('parses LIVESYNC_AUTO_ARM=true from environment variables', async () => {
-      const config = await loadConfig(undefined, {
-        LIVESYNC_COUCHDB_URL: 'http://127.0.0.1:5984',
-        LIVESYNC_COUCHDB_DATABASE: 'testdb',
-        LIVESYNC_VAULT_PATH: vaultRoot,
-        LIVESYNC_STATE_PATH: statePath,
-        LIVESYNC_AUTO_ARM: 'true',
-      });
-
-      expect(config.cli?.autoArm).toBe(true);
       expect(config.cli?.write).toBe('auto-arm');
     });
 

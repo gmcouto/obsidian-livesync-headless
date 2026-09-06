@@ -29,11 +29,33 @@ function parseBooleanEnv(val: string | undefined): boolean | undefined {
   return undefined;
 }
 
-function parseWriteEnv(val: string | undefined): boolean | 'auto-arm' | undefined {
+function parseModeEnv(val: string | undefined): boolean | 'auto-arm' | undefined {
   if (val === undefined || val === '') return undefined;
   const lower = val.trim().toLowerCase();
   if (lower === 'auto-arm' || lower === 'autoarm' || lower === 'auto_arm') return 'auto-arm';
-  return parseBooleanEnv(val);
+  if (
+    lower === 'write' ||
+    lower === 'bidirectional' ||
+    lower === 'sync' ||
+    lower === 'true' ||
+    lower === '1' ||
+    lower === 'yes' ||
+    lower === 'on'
+  ) {
+    return true;
+  }
+  if (
+    lower === 'read-only' ||
+    lower === 'readonly' ||
+    lower === 'pull' ||
+    lower === 'false' ||
+    lower === '0' ||
+    lower === 'no' ||
+    lower === 'off'
+  ) {
+    return false;
+  }
+  return undefined;
 }
 
 function parseIntegerEnv(val: string | undefined): number | undefined {
@@ -87,20 +109,19 @@ function extractEnvConfig(env: NodeJS.ProcessEnv): Record<string, any> {
   }
   if (Object.keys(encryption).length > 0) envConfig.encryption = encryption;
 
-  // CLI / Daemon defaults
-  const cliWrite = parseWriteEnv(env.LIVESYNC_WRITE);
-  const autoArm = parseBooleanEnv(env.LIVESYNC_AUTO_ARM);
+  // CLI / Daemon mode defaults (LIVESYNC_MODE: "auto-arm" | "write" | "read-only")
+  const modeVal = parseModeEnv(env.LIVESYNC_MODE ?? env.LIVESYNC_WRITE);
   const periodicScanSec = parseIntegerEnv(env.LIVESYNC_PERIODIC_SCAN_SEC);
   const concurrency = parseIntegerEnv(env.LIVESYNC_CONCURRENCY);
   const debounceMs = parseIntegerEnv(env.LIVESYNC_DEBOUNCE_MS);
 
   const cli: Record<string, any> = {};
-  if (cliWrite !== undefined) {
-    cli.write = cliWrite;
-  } else if (autoArm) {
-    cli.write = 'auto-arm';
+  if (modeVal !== undefined) {
+    cli.write = modeVal;
+    if (modeVal === 'auto-arm') {
+      cli.autoArm = true;
+    }
   }
-  if (autoArm !== undefined) cli.autoArm = autoArm;
   if (periodicScanSec !== undefined) cli.periodicScanSec = periodicScanSec;
   if (concurrency !== undefined) cli.concurrency = concurrency;
   if (debounceMs !== undefined) cli.debounceMs = debounceMs;

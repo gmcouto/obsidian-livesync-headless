@@ -251,14 +251,15 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
       if (!activeGrant) {
         writeStderr(
           `ERROR: No active write grant found for vault '${vaultRoot}' and remote '${fingerprint}'.\n\n` +
-            `  WHY: The daemon requires a one-time arm step to generate a durable write grant\n` +
-            `       before it can push changes to the remote database (LIVESYNC_WRITE=true / --write).\n` +
+            `  WHY: The daemon requires an armed write grant before it can push changes\n` +
+            `       to the remote database (LIVESYNC_MODE=write / --write).\n` +
             `       This prevents accidental writes to an existing database on first contact.\n\n` +
-            `  FIX: Run the arm command once, then restart the daemon:\n\n` +
+            `  FIX: Use auto-arm mode to automatically validate and arm:\n` +
+            `         LIVESYNC_MODE=auto-arm\n\n` +
+            `       Or run the arm command once manually:\n` +
             `         docker exec -it obsidian-livesync obsidian-livesync-headless arm\n\n` +
-            `       Or if using a config file:\n\n` +
-            `         obsidian-livesync-headless arm -c <config>\n\n` +
-            `       The daemon will then start in bidirectional (write-armed) mode.\n`
+            `       Or if using a config file:\n` +
+            `         obsidian-livesync-headless arm -c <config>\n\n`
         );
         return EXIT_CODES.CONFIG_ERROR;
       }
@@ -279,7 +280,7 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
       `[info] Running in read-only (pull-only) mode.\n` +
         `       Remote changes will be pulled to vault; local changes will NOT be pushed.\n` +
         `\n` +
-        `       To enable bidirectional sync, set LIVESYNC_WRITE=true (or pass --write)\n` +
+        `       To enable bidirectional sync, set LIVESYNC_MODE=auto-arm (or LIVESYNC_MODE=write / --write)\n` +
         `       and run the arm command once:\n` +
         `\n` +
         `         docker exec -it obsidian-livesync obsidian-livesync-headless arm\n\n`
