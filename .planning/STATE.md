@@ -90,7 +90,9 @@ Recent decisions affecting current work:
 - [Phase 02]: Use one encryptionPassphrase for decrypt and path2id_base obfuscation
 - [Phase 03]: Store quarantine and SQLite state files strictly outside the vault directory tree.
 - [Phase 03]: Quarantine local files on remote deletion with read-back verification before vault unlinking.
-- [Phase 03]: Treat unreferenced .ols-tmp-* files in vault as stale staging orphans and clean them on startup.
+### Roadmap Evolution
+
+- Phase 7 added: Environment Variable Configuration and Minimal Docker Daemon Distribution (pure ENV config, multi-stage minimal Dockerfile with /vault and /data/.state.db mounts, GitHub Actions GHCR publish workflow on release)
 
 ### Pending Todos
 

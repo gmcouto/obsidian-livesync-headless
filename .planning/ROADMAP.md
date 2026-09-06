@@ -12,6 +12,7 @@ The MVP advances through six guarded vertical slices: establish structurally rea
 - [x] **Phase 4: Explicitly Armed Bidirectional One-Shot** - Converge local and remote file state once through a fresh, scope-bound write grant and preservation-first reconciliation. (completed 2026-09-06)
 - [ ] **Phase 5: Continuous Convergence Daemon** - Reuse the one-shot safety model for bounded, restart-safe continuous synchronization.
 - [x] **Phase 6: Packaged Mixed-Client Release Gate** - Ship a single executable only after packaged compatibility, integrity, safety, and mixed-client evidence passes. (completed 2026-09-06)
+- [ ] **Phase 7: Environment Variable Configuration and Minimal Docker Daemon Distribution** - Support purely environment-variable-driven configuration without config files, and provide an automated multi-stage minimal Docker image and GitHub Actions release workflow.
 
 ## Phase Details
 
@@ -153,7 +154,7 @@ Plans:
 
 ## Progress
 
-**Execution Order:** Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6
+**Execution Order:** Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -163,3 +164,26 @@ Plans:
 | 4. Explicitly Armed Bidirectional One-Shot | 4/4 | Complete    | 2026-09-06 |
 | 5. Continuous Convergence Daemon | 4/4 | Complete    | 2026-09-06 |
 | 6. Packaged Mixed-Client Release Gate | 4/4 | Complete    | 2026-09-06 |
+| 7. Environment Variable Configuration and Minimal Docker Daemon Distribution | 0/3 | Not started | - |
+
+### Phase 7: Environment Variable Configuration and Minimal Docker Daemon Distribution
+
+**Goal:** Users can run the application seamlessly via environment variables without requiring a configuration file, run a minimal standalone Docker daemon container with `/vault` and `/data/.state.db` volume mounts, and automatically publish version-tagged and latest Docker images via GitHub Actions workflows on releases.
+**Requirements:** ENV-01, ENV-02, DOCKER-01, DOCKER-02, DOCKER-03, CI-01
+**Depends on:** Phase 6
+**Success Criteria** (what must be TRUE):
+
+  1. User can run any CLI command (including `daemon`, `sync`, `inspect`, `status`) purely through environment variables without supplying or generating a YAML config file.
+  2. Docker image provides sensible defaults syncing to `/vault` (writable mount) and storing SQLite state in `/data/.state.db` (persistent mount), with clear volume mounting guidance.
+  3. Docker build uses multi-stage caching that separates dependency installation (`package*.json`) from source compilation and packages only the standalone binary layer into a minimal runtime image.
+  4. Docker container executes the headless daemon by default upon container start.
+  5. GitHub Actions workflow triggers on published GitHub releases to build and publish the multi-stage minimal Docker image tagged with the release version and update the `latest` tag on GHCR.
+
+**Plans:** 0/3 plans complete
+
+Plans:
+
+- [ ] 07-01-PLAN.md — Environment Variable Configuration Synthesis & CLI Option Decoupling (ENV-01, ENV-02)
+- [ ] 07-02-PLAN.md — Multi-Stage Dockerfile & Containerized Daemon Defaults (DOCKER-01, DOCKER-02, DOCKER-03)
+- [ ] 07-03-PLAN.md — GitHub Actions Release Workflow & Documentation (CI-01)
+
