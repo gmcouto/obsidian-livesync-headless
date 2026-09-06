@@ -1,9 +1,12 @@
 import { loadConfig } from '../../config/loader.js';
 import { SecretRedactor, defaultRedactor } from '../../security/redaction.js';
 import { createWriteCapability, type WriteCapability } from '../../security/capabilities.js';
-import { computeFingerprint } from '../../livesync/negotiation.js';
+import { computeFingerprint, negotiateCompatibility } from '../../livesync/negotiation.js';
+import { probeRemoteDatabase, type RemoteProbeResult } from '../../livesync/inspector.js';
+import { verifySyncinfo } from '../../livesync/syncinfo.js';
+import { createGuardedFetch } from '../../security/transport-guard.js';
 import { openDatabase } from '../../storage/sqlite.js';
-import { AdmissionRepository } from '../../storage/admission-repo.js';
+import { AdmissionRepository, type AdmissionRecord } from '../../storage/admission-repo.js';
 import { WriteGrantRepo } from '../../storage/write-grant-repo.js';
 import { ContinuousEngine } from '../../daemon/continuous-engine.js';
 import { ShutdownHandler } from '../../daemon/shutdown-handler.js';
@@ -68,6 +71,135 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
 
   const fingerprint = computeFingerprint(allowedBaseUrl.href, databaseName);
 
+  const guardedFetch = createGuardedFetch(
+    { allowedBaseUrl, databaseName },
+    options.fetch ?? globalThis.fetch
+  );
+
+  let probeResult: RemoteProbeResult | undefined;
+  let negotiation: ReturnType<typeof negotiateCompatibility> | undefined;
+
+  try {
+    probeResult = await probeRemoteDatabase(
+      guardedFetch,
+      allowedBaseUrl,
+      databaseName,
+      credentials
+    );
+
+    const syncinfoResult = await verifySyncinfo(
+      probeResult.syncinfoDoc,
+      probeResult.syncParamsDoc,
+      config.resolvedSecrets.encryptionPassphrase
+    );
+
+    negotiation = negotiateCompatibility(
+      probeResult,
+      config,
+      syncinfoResult.verified
+    );
+
+    if (!negotiation.admitted) {
+      writeStdout(
+        JSON.stringify({
+          type: 'daemon_report',
+          outcome: OutcomeCategory.INCOMPATIBLE,
+          message: 'Remote database failed admission negotiation.',
+          blockers: negotiation.blockers,
+        }) + '\n'
+      );
+      return EXIT_CODES.INCOMPATIBLE;
+    }
+
+    const db = openDatabase(statePath);
+    try {
+      const admissionRepo = new AdmissionRepository(db);
+      admissionRepo.saveAdmission({
+        remoteFingerprint: negotiation.remoteFingerprint,
+        couchdbUrl: allowedBaseUrl.href,
+        databaseName,
+        couchdbVersion: probeResult.databaseInfo.couchdbVersion ?? '3.5.2',
+        versionInfoRev: probeResult.versionDoc?._rev ?? '1',
+        milestoneRev: probeResult.milestoneDoc?._rev ?? '1',
+        syncParamsRev: probeResult.syncParamsDoc?._rev ?? null,
+        negotiatedSettingsHash: negotiation.negotiatedSettingsHash,
+        negotiatedSettingsJson: JSON.stringify(negotiation.negotiatedSettings),
+        updateSeq: probeResult.databaseInfo.updateSeq,
+        admittedAt: new Date().toISOString(),
+      });
+    } finally {
+      db.close();
+    }
+  } catch (err) {
+    // If probing fails on startup (e.g. offline / network hiccup), fall back to stored admission
+    const db = openDatabase(statePath);
+    try {
+      const admissionRepo = new AdmissionRepository(db);
+      const existing = admissionRepo.getAdmissionByFingerprint(fingerprint);
+      if (!existing) {
+        writeStderr(`Failed to probe remote database and no prior admission found: ${(err as Error).message}\n`);
+        return EXIT_CODES.CONFIG_ERROR;
+      }
+    } finally {
+      db.close();
+    }
+  }
+
+  const db = openDatabase(statePath);
+  let admissionRec: AdmissionRecord | null = null;
+  try {
+    const admissionRepo = new AdmissionRepository(db);
+    admissionRec = admissionRepo.getAdmissionByFingerprint(fingerprint) ?? admissionRepo.getLatest();
+  } finally {
+    db.close();
+  }
+
+  let negotiatedSettings: Record<string, unknown> = {};
+  if (admissionRec?.negotiatedSettingsJson) {
+    try {
+      negotiatedSettings = JSON.parse(admissionRec.negotiatedSettingsJson);
+    } catch {}
+  }
+
+  const preferredTweaks = probeResult?.milestoneDoc?.tweak_values?.PREFERRED ?? {};
+  const encrypt = Boolean(
+    config.encryption?.enabled ??
+    negotiatedSettings.encrypt ??
+    preferredTweaks.encrypt
+  );
+  const algorithm =
+    typeof negotiatedSettings.E2EEAlgorithm === 'string'
+      ? (negotiatedSettings.E2EEAlgorithm as string)
+      : typeof preferredTweaks.E2EEAlgorithm === 'string'
+        ? (preferredTweaks.E2EEAlgorithm as string)
+        : encrypt
+          ? 'v2'
+          : undefined;
+
+  const pbkdf2salt =
+    typeof probeResult?.syncParamsDoc?.pbkdf2salt === 'string'
+      ? probeResult.syncParamsDoc.pbkdf2salt
+      : typeof negotiatedSettings.pbkdf2salt === 'string'
+        ? (negotiatedSettings.pbkdf2salt as string)
+        : undefined;
+
+  const useDynamicIterationCount = Boolean(
+    negotiatedSettings.useDynamicIterationCount ?? preferredTweaks.useDynamicIterationCount
+  );
+
+  const usePathObfuscation = Boolean(
+    negotiatedSettings.usePathObfuscation ?? preferredTweaks.usePathObfuscation
+  );
+
+  const handleFilenameCaseSensitive = Boolean(
+    negotiatedSettings.handleFilenameCaseSensitive ?? preferredTweaks.handleFilenameCaseSensitive
+  );
+
+  const customChunkSize =
+    typeof negotiatedSettings.customChunkSize === 'number'
+      ? (negotiatedSettings.customChunkSize as number)
+      : undefined;
+
   // Check write grant if write mode is requested (DAEM-01)
   let capability: WriteCapability | null = null;
   if (options.write) {
@@ -103,13 +235,13 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
     databaseName,
     credentials,
     encryptionPassphrase: config.resolvedSecrets.encryptionPassphrase,
-    algorithm: config.encryption?.algorithm,
-    useDynamicIterationCount: config.encryption?.useDynamicIterationCount,
-    usePathObfuscation: config.encryption?.usePathObfuscation,
-    pbkdf2salt: config.encryption?.pbkdf2salt,
-    handleFilenameCaseSensitive: config.vault.caseSensitive,
-    customChunkSize: config.chunking?.chunkSize,
-    minimumChunkSize: config.chunking?.minimumChunkSize,
+    algorithm,
+    useDynamicIterationCount,
+    usePathObfuscation,
+    pbkdf2salt,
+    handleFilenameCaseSensitive,
+    customChunkSize,
+    minimumChunkSize: 20,
     periodicScanIntervalMs: (options.periodicScanSec ?? 300) * 1000,
     debounceMs: options.debounceMs ?? 300,
     workerConcurrency: options.concurrency ?? 4,
@@ -176,6 +308,6 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
   } catch (err: unknown) {
     writeStderr(`Daemon fatal error: ${(err as Error).message}\n`);
     await engine.stop().catch(() => {});
-    return EXIT_CODES.SYNC_CONFLICT;
+    return EXIT_CODES.CONFLICT;
   }
 }

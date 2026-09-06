@@ -156,6 +156,10 @@ export function negotiateCompatibility(
     }
   }
 
+  if (probeResult.syncParamsDoc?.pbkdf2salt) {
+    negotiatedSettings.pbkdf2salt = probeResult.syncParamsDoc.pbkdf2salt;
+  }
+
   // 4. Encryption & Passphrase Gate
   const isEncrypted =
     preferredTweaks.encrypt === true ||

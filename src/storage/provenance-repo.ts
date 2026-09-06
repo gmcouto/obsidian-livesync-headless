@@ -53,7 +53,21 @@ export class ProvenanceRepository {
       WHERE path = ?
     `);
 
-    const row = stmt.get(path) as Record<string, unknown> | undefined;
+    let row = stmt.get(path) as Record<string, unknown> | undefined;
+    if (!row) {
+      const caseStmt = this.db.prepare(`
+        SELECT
+          path,
+          remote_revision,
+          content_sha256,
+          observed_mtime,
+          remote_fingerprint,
+          reflected_at
+        FROM file_provenance
+        WHERE path = ? COLLATE NOCASE
+      `);
+      row = caseStmt.get(path) as Record<string, unknown> | undefined;
+    }
     if (!row) {
       return null;
     }

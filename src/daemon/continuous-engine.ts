@@ -44,8 +44,8 @@ export class ContinuousEngine extends EventEmitter {
   private readonly reconnectionManager: ReconnectionManager;
   private readonly checkpointWindow = new CheckpointWindow();
   private readonly workerPool: FileWorkerPool;
-  private readonly reconciler: FileReconciler;
-  private readonly syncCoordinator: SyncCoordinator;
+  private reconciler: FileReconciler;
+  private syncCoordinator: SyncCoordinator;
 
   private periodicTimer: NodeJS.Timeout | null = null;
   private activeCapability: WriteCapability | ArmedSyncCapability | null = null;
@@ -181,6 +181,74 @@ export class ContinuousEngine extends EventEmitter {
       }
 
       this.remoteFingerprint = latestAdmission.remoteFingerprint;
+
+      // Enrich reconciler and coordinator with negotiated parameters from admission record if omitted
+      if (latestAdmission.negotiatedSettingsJson) {
+        try {
+          const settings = JSON.parse(latestAdmission.negotiatedSettingsJson) as Record<string, unknown>;
+          const pbkdf2salt =
+            this.options.pbkdf2salt ??
+            (typeof settings.pbkdf2salt === 'string' ? settings.pbkdf2salt : undefined);
+          const algorithm =
+            this.options.algorithm ??
+            (typeof settings.E2EEAlgorithm === 'string' ? settings.E2EEAlgorithm : undefined);
+          const useDynamicIterationCount =
+            this.options.useDynamicIterationCount ??
+            (typeof settings.useDynamicIterationCount === 'boolean' ? settings.useDynamicIterationCount : undefined);
+          const usePathObfuscation =
+            this.options.usePathObfuscation ??
+            (typeof settings.usePathObfuscation === 'boolean' ? settings.usePathObfuscation : undefined);
+          const handleFilenameCaseSensitive =
+            this.options.handleFilenameCaseSensitive ??
+            (typeof settings.handleFilenameCaseSensitive === 'boolean' ? settings.handleFilenameCaseSensitive : undefined);
+          const customChunkSize =
+            this.options.customChunkSize ??
+            (typeof settings.customChunkSize === 'number' ? settings.customChunkSize : undefined);
+
+          this.reconciler = new FileReconciler({
+            vaultRoot: this.options.vaultRoot,
+            statePath: this.options.statePath,
+            stateRoot: this.options.stateRoot,
+            baseUrl: this.options.baseUrl,
+            databaseName: this.options.databaseName,
+            remoteFingerprint: this.remoteFingerprint,
+            credentials: this.options.credentials,
+            encryptionPassphrase: this.options.encryptionPassphrase,
+            algorithm,
+            useDynamicIterationCount,
+            usePathObfuscation,
+            pbkdf2salt,
+            handleFilenameCaseSensitive,
+            customChunkSize,
+            minimumChunkSize: this.options.minimumChunkSize,
+            fetch: this.options.fetch,
+            stateMachine: this.stateMachine,
+            getCapability: () => this.activeCapability,
+          });
+
+          this.syncCoordinator = new SyncCoordinator({
+            baseUrl: this.options.baseUrl,
+            databaseName: this.options.databaseName,
+            vaultRoot: this.options.vaultRoot,
+            statePath: this.options.statePath,
+            stateRoot: this.options.stateRoot,
+            dryRun: false,
+            credentials: this.options.credentials,
+            encryptionPassphrase: this.options.encryptionPassphrase,
+            algorithm,
+            useDynamicIterationCount,
+            usePathObfuscation,
+            pbkdf2salt,
+            handleFilenameCaseSensitive,
+            customChunkSize,
+            minimumChunkSize: this.options.minimumChunkSize,
+            remoteFingerprint: this.remoteFingerprint,
+            fetch: this.options.fetch,
+          });
+        } catch {
+          // Keep existing reconciler/syncCoordinator
+        }
+      }
 
       if (!this.options.readOnly && this.activeCapability) {
         const grantRepo = new WriteGrantRepo(db);
