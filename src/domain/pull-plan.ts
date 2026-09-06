@@ -5,6 +5,8 @@ const SPECIAL_NOTE_TYPES = new Set(['leaf', 'versioninfo']);
 
 export type PullAction =
   | { kind: 'create'; path: string; sourceRevision: string; bytes: Uint8Array }
+  | { kind: 'noop'; path: string; sourceRevision: string; contentSha256: string }
+  | { kind: 'quarantine-delete'; path: string; sourceRevision?: string }
   | { kind: 'skip-logical-delete'; path: string; sourceRevision: string }
   | { kind: 'skip-special'; id: string; type: string }
   | { kind: 'skip-ignored'; path: string }
@@ -16,6 +18,11 @@ export type PullAction =
       message: string;
       suggestion?: string;
     };
+
+export interface LocalFileInspection {
+  readonly exists: boolean;
+  readonly contentSha256?: string;
+}
 
 export type PullObservation =
   | {
@@ -173,6 +180,124 @@ export function buildPullPlan(observations: readonly PullObservation[]): PullAct
   return actions;
 }
 
+export interface ProvenanceLookup {
+  readonly remoteRevision: string;
+  readonly contentSha256: string;
+}
+
+export function buildRecoverablePullPlan(
+  observations: readonly PullObservation[],
+  existingProvenance: ReadonlyMap<string, ProvenanceLookup>,
+  localFiles: ReadonlyMap<string, LocalFileInspection>
+): PullAction[] {
+  const actions: PullAction[] = [];
+  const consumedNoteKeys = new Set<string>();
+
+  for (const observation of observations) {
+    if (observation.kind === 'special') {
+      actions.push({ kind: 'skip-special', id: observation.id, type: observation.type });
+      continue;
+    }
+
+    if (observation.kind === 'ignored') {
+      actions.push({ kind: 'skip-ignored', path: observation.path });
+      continue;
+    }
+
+    if (observation.kind === 'block') {
+      actions.push({
+        kind: 'block',
+        id: observation.id,
+        path: observation.path,
+        code: observation.code,
+        message: observation.message,
+        suggestion: observation.suggestion ?? suggestionForBlock(observation.code),
+      });
+      continue;
+    }
+
+    const key = noteGroupKey(observation);
+    if (consumedNoteKeys.has(key)) {
+      continue;
+    }
+    consumedNoteKeys.add(key);
+
+    const group = observations.filter(
+      (candidate): candidate is Extract<PullObservation, { kind: 'note' }> =>
+        candidate.kind === 'note' && noteGroupKey(candidate) === key
+    );
+    const live = group.filter((candidate) => !candidate.deleted);
+
+    if (live.length >= 2) {
+      actions.push({
+        kind: 'block',
+        id: key,
+        path: observation.path,
+        code: 'CONFLICT_LEAVES',
+        message: `Path '${observation.path}' has ${live.length} live non-deleted revision leaves; the CouchDB winner is not materialized`,
+        suggestion: suggestionForBlock('CONFLICT_LEAVES'),
+      });
+      continue;
+    }
+
+    if (live.length === 0) {
+      const localInfo = localFiles.get(observation.path);
+      if (localInfo?.exists) {
+        actions.push({
+          kind: 'quarantine-delete',
+          path: observation.path,
+          sourceRevision: group[0]?.sourceRevision,
+        });
+      } else {
+        actions.push({
+          kind: 'skip-logical-delete',
+          path: observation.path,
+          sourceRevision: group[0]?.sourceRevision ?? '',
+        });
+      }
+      continue;
+    }
+
+    const leaf = live[0];
+    if (!isSupportedNoteType(leaf.type) || SPECIAL_NOTE_TYPES.has(leaf.type)) {
+      actions.push({
+        kind: 'skip-special',
+        id: leaf.path,
+        type: leaf.type,
+      });
+      continue;
+    }
+
+    const computedSha256 = createHash('sha256').update(leaf.bytes).digest('hex');
+    const prov = existingProvenance.get(leaf.path);
+    const localInfo = localFiles.get(leaf.path);
+
+    if (
+      localInfo?.exists &&
+      prov &&
+      prov.remoteRevision === leaf.sourceRevision &&
+      prov.contentSha256 === computedSha256 &&
+      localInfo.contentSha256 === computedSha256
+    ) {
+      actions.push({
+        kind: 'noop',
+        path: leaf.path,
+        sourceRevision: leaf.sourceRevision,
+        contentSha256: computedSha256,
+      });
+    } else {
+      actions.push({
+        kind: 'create',
+        path: leaf.path,
+        sourceRevision: leaf.sourceRevision,
+        bytes: leaf.bytes,
+      });
+    }
+  }
+
+  return actions;
+}
+
 export function serializePullActions(actions: readonly PullAction[]): SerializedPullAction[] {
   return actions.map((action) => {
     if (action.kind === 'create') {
@@ -182,6 +307,23 @@ export function serializePullActions(actions: readonly PullAction[]): Serialized
         sourceRevision: action.sourceRevision,
         byteLength: action.bytes.byteLength,
         contentSha256: createHash('sha256').update(action.bytes).digest('hex'),
+      };
+    }
+
+    if (action.kind === 'noop') {
+      return {
+        kind: action.kind,
+        path: action.path,
+        sourceRevision: action.sourceRevision,
+        contentSha256: action.contentSha256,
+      };
+    }
+
+    if (action.kind === 'quarantine-delete') {
+      return {
+        kind: action.kind,
+        path: action.path,
+        sourceRevision: action.sourceRevision,
       };
     }
 
@@ -218,3 +360,4 @@ export function serializePullActions(actions: readonly PullAction[]): Serialized
     };
   });
 }
+
