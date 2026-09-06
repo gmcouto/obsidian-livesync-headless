@@ -88,6 +88,399 @@ export class CouchDbTestHarness {
     return { rev: json.rev };
   }
 
+  async getDocument(
+    dbName: string,
+    docId: string
+  ): Promise<Record<string, unknown> | null> {
+    const pathSegments = docId.split('/').map(encodeURIComponent).join('/');
+    const url = new URL(`/${encodeURIComponent(dbName)}/${pathSegments}`, this.getBaseUrl());
+    const res = await fetch(url.toString(), {
+      headers: {
+        Authorization: this.getAuthHeader(),
+        Accept: 'application/json',
+      },
+    });
+    if (res.status === 404) {
+      return null;
+    }
+    if (!res.ok) {
+      throw new Error(
+        `Failed to get document '${docId}' in '${dbName}': HTTP ${res.status} ${res.statusText}`
+      );
+    }
+    return (await res.json()) as Record<string, unknown>;
+  }
+
+  async writeUpstreamPlainNote(
+    dbName: string,
+    relativePath: string,
+    content: string,
+    options?: {
+      chunkSize?: number;
+      minimumChunkSize?: number;
+    }
+  ): Promise<{ id: string; rev: string; children: string[] }> {
+    const { path2id_base } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/path'
+    );
+    const { splitPieces2V2, collectGenAll } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/chunks'
+    );
+    const { digestHash } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/hash'
+    );
+
+    const chunkSize = options?.chunkSize ?? 50000;
+    const minimumChunkSize = options?.minimumChunkSize ?? 20;
+    const byteLength = new TextEncoder().encode(content).byteLength;
+
+    let pieces: string[] = [];
+    if (content.length > 0) {
+      const blob = new Blob([content], { type: 'text/plain' });
+      const genFn = await splitPieces2V2(blob, chunkSize, false, minimumChunkSize, relativePath);
+      pieces = await collectGenAll(genFn());
+    }
+
+    const children: string[] = [];
+    for (const piece of pieces) {
+      const hash = await digestHash(piece);
+      const chunkId = `h:${hash}`;
+      await this.putDocument(dbName, chunkId, {
+        _id: chunkId,
+        type: 'leaf',
+        data: piece,
+      });
+      children.push(chunkId);
+    }
+
+    const id = String(await path2id_base(relativePath, false, true));
+    const { rev } = await this.putDocument(dbName, id, {
+      _id: id,
+      type: 'plain',
+      path: relativePath,
+      children,
+      size: byteLength,
+      deleted: false,
+      mtime: Date.now(),
+      ctime: Date.now(),
+    });
+
+    return { id, rev, children };
+  }
+
+  async writeUpstreamEncryptedNote(
+    dbName: string,
+    relativePath: string,
+    content: string,
+    passphrase: string,
+    saltHex: string,
+    options?: {
+      chunkSize?: number;
+      minimumChunkSize?: number;
+    }
+  ): Promise<{ id: string; rev: string; children: string[] }> {
+    const { path2id_base } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/path'
+    );
+    const { splitPieces2V2, collectGenAll } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/chunks'
+    );
+    const { digestHash } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/hash'
+    );
+    const { encrypt: encryptHkdf } = await import('octagonal-wheels/encryption/hkdf');
+    const { hexStringToUint8Array } = await import('octagonal-wheels/binary/hex');
+
+    const saltBytes = (/^[0-9a-fA-F]+$/.test(saltHex) && saltHex.length % 2 === 0)
+      ? hexStringToUint8Array(saltHex)
+      : new TextEncoder().encode(saltHex);
+    const chunkSize = options?.chunkSize ?? 50000;
+    const minimumChunkSize = options?.minimumChunkSize ?? 20;
+    const byteLength = new TextEncoder().encode(content).byteLength;
+
+    let pieces: string[] = [];
+    if (content.length > 0) {
+      const blob = new Blob([content], { type: 'text/plain' });
+      const genFn = await splitPieces2V2(blob, chunkSize, false, minimumChunkSize, relativePath);
+      pieces = await collectGenAll(genFn());
+    }
+
+    const children: string[] = [];
+    for (const piece of pieces) {
+      const encryptedPiece = await encryptHkdf(piece, passphrase, saltBytes as never);
+      const hash = await digestHash(encryptedPiece);
+      const chunkId = `e:${hash}`;
+      await this.putDocument(dbName, chunkId, {
+        _id: chunkId,
+        type: 'leaf',
+        data: encryptedPiece,
+        e_: true,
+      });
+      children.push(chunkId);
+    }
+
+    const meta = JSON.stringify({
+      path: relativePath,
+      mtime: Date.now(),
+      ctime: Date.now(),
+      size: byteLength,
+    });
+    const encryptedPath = `/\\:${await encryptHkdf(meta, passphrase, saltBytes as never)}`;
+    const id = String(await path2id_base(relativePath, false, true));
+
+    const { rev } = await this.putDocument(dbName, id, {
+      _id: id,
+      type: 'notes',
+      path: encryptedPath,
+      children,
+      e_: true,
+      size: 0,
+      deleted: false,
+      mtime: Date.now(),
+    });
+
+    return { id, rev, children };
+  }
+
+  async writeUpstreamObfuscatedNote(
+    dbName: string,
+    relativePath: string,
+    content: string,
+    passphrase: string,
+    saltHex: string,
+    options?: {
+      chunkSize?: number;
+      minimumChunkSize?: number;
+    }
+  ): Promise<{ id: string; rev: string; children: string[] }> {
+    const { path2id_base } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/path'
+    );
+    const { splitPieces2V2, collectGenAll } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/chunks'
+    );
+    const { digestHash } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/hash'
+    );
+    const { encrypt: encryptHkdf } = await import('octagonal-wheels/encryption/hkdf');
+    const { hexStringToUint8Array } = await import('octagonal-wheels/binary/hex');
+
+    const saltBytes = (/^[0-9a-fA-F]+$/.test(saltHex) && saltHex.length % 2 === 0)
+      ? hexStringToUint8Array(saltHex)
+      : new TextEncoder().encode(saltHex);
+    const chunkSize = options?.chunkSize ?? 50000;
+    const minimumChunkSize = options?.minimumChunkSize ?? 20;
+    const byteLength = new TextEncoder().encode(content).byteLength;
+
+    let pieces: string[] = [];
+    if (content.length > 0) {
+      const blob = new Blob([content], { type: 'text/plain' });
+      const genFn = await splitPieces2V2(blob, chunkSize, false, minimumChunkSize, relativePath);
+      pieces = await collectGenAll(genFn());
+    }
+
+    const children: string[] = [];
+    for (const piece of pieces) {
+      const encryptedPiece = await encryptHkdf(piece, passphrase, saltBytes as never);
+      const hash = await digestHash(encryptedPiece);
+      const chunkId = `e:${hash}`;
+      await this.putDocument(dbName, chunkId, {
+        _id: chunkId,
+        type: 'leaf',
+        data: encryptedPiece,
+        e_: true,
+      });
+      children.push(chunkId);
+    }
+
+    const meta = JSON.stringify({
+      path: relativePath,
+      mtime: Date.now(),
+      ctime: Date.now(),
+      size: byteLength,
+    });
+    const encryptedPath = `/\\:${await encryptHkdf(meta, passphrase, saltBytes as never)}`;
+    const id = String(await path2id_base(relativePath, passphrase, true));
+
+    const { rev } = await this.putDocument(dbName, id, {
+      _id: id,
+      type: 'notes',
+      path: encryptedPath,
+      children,
+      e_: true,
+      size: 0,
+      deleted: false,
+      mtime: Date.now(),
+    });
+
+    return { id, rev, children };
+  }
+
+  async readUpstreamNote(
+    dbName: string,
+    relativePath: string,
+    options?: {
+      passphrase?: string;
+      saltHex?: string;
+      isObfuscated?: boolean;
+    }
+  ): Promise<{
+    id: string;
+    rev: string;
+    path: string;
+    content: string;
+    bytes: Uint8Array;
+    deleted: boolean;
+    children?: string[];
+  } | null> {
+    const { path2id_base } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/path'
+    );
+    const { decrypt: decryptHkdf } = await import('octagonal-wheels/encryption/hkdf');
+    const { hexStringToUint8Array } = await import('octagonal-wheels/binary/hex');
+
+    let docId: string;
+    let doc: Record<string, unknown> | null = null;
+
+    if (options?.isObfuscated && options?.passphrase) {
+      docId = String(await path2id_base(relativePath, options.passphrase, true));
+      doc = await this.getDocument(dbName, docId);
+    } else if (options?.isObfuscated === false) {
+      docId = String(await path2id_base(relativePath, false, true));
+      doc = await this.getDocument(dbName, docId);
+    } else {
+      docId = String(await path2id_base(relativePath, false, true));
+      doc = await this.getDocument(dbName, docId);
+      if (!doc && options?.passphrase) {
+        docId = String(await path2id_base(relativePath, options.passphrase, true));
+        doc = await this.getDocument(dbName, docId);
+      }
+    }
+
+    if (!doc) {
+      return null;
+    }
+
+    const id = (doc._id as string) ?? docId;
+    const rev = doc._rev as string;
+    const isDeleted = Boolean(doc.deleted);
+
+    if (isDeleted) {
+      return {
+        id,
+        rev,
+        path: relativePath,
+        content: '',
+        bytes: new Uint8Array(0),
+        deleted: true,
+      };
+    }
+
+    const isEncrypted = Boolean(doc.e_ || (typeof doc.path === 'string' && doc.path.startsWith('/\\:')));
+    let realPath = relativePath;
+    let content = '';
+
+    if (isEncrypted) {
+      if (!options?.passphrase) {
+        throw new Error('Passphrase required to decrypt note');
+      }
+      const rawSalt = options.saltHex ?? 'salt-12345';
+      const saltBytes = (/^[0-9a-fA-F]+$/.test(rawSalt) && rawSalt.length % 2 === 0)
+        ? hexStringToUint8Array(rawSalt)
+        : new TextEncoder().encode(rawSalt);
+
+      if (typeof doc.path === 'string' && doc.path.startsWith('/\\:')) {
+        const decryptedMeta = await decryptHkdf(doc.path.slice(3), options.passphrase, saltBytes as never);
+        try {
+          const parsedMeta = JSON.parse(decryptedMeta);
+          if (parsedMeta.path) {
+            realPath = parsedMeta.path;
+          }
+        } catch {
+          // Keep relativePath
+        }
+      }
+
+      if (typeof doc.data === 'string') {
+        content = await decryptHkdf(doc.data, options.passphrase, saltBytes as never);
+      } else if (Array.isArray(doc.children)) {
+        const parts: string[] = [];
+        for (const chunkId of doc.children as string[]) {
+          const chunkDoc = await this.getDocument(dbName, chunkId);
+          if (!chunkDoc) {
+            throw new Error(`Referenced chunk '${chunkId}' not found in database '${dbName}'`);
+          }
+          const chunkData = (chunkDoc.data as string) ?? '';
+          if (chunkDoc.e_) {
+            parts.push(await decryptHkdf(chunkData, options.passphrase, saltBytes as never));
+          } else {
+            parts.push(chunkData);
+          }
+        }
+        content = parts.join('');
+      }
+    } else {
+      if (typeof doc.data === 'string') {
+        content = doc.data;
+      } else if (Array.isArray(doc.children)) {
+        const parts: string[] = [];
+        for (const chunkId of doc.children as string[]) {
+          const chunkDoc = await this.getDocument(dbName, chunkId);
+          if (!chunkDoc) {
+            throw new Error(`Referenced chunk '${chunkId}' not found in database '${dbName}'`);
+          }
+          parts.push((chunkDoc.data as string) ?? '');
+        }
+        content = parts.join('');
+      }
+    }
+
+    return {
+      id,
+      rev,
+      path: realPath,
+      content,
+      bytes: new TextEncoder().encode(content),
+      deleted: false,
+      children: doc.children as string[] | undefined,
+    };
+  }
+
+  async writeUpstreamLogicalDeletion(
+    dbName: string,
+    relativePath: string,
+    options?: {
+      previousRev?: string;
+      passphrase?: string;
+      isObfuscated?: boolean;
+    }
+  ): Promise<{ id: string; rev: string }> {
+    const { path2id_base } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/path'
+    );
+    const obfuscate = options?.isObfuscated && options?.passphrase ? options.passphrase : false;
+    const docId = String(await path2id_base(relativePath, obfuscate, true));
+
+    let previousRev = options?.previousRev;
+    if (!previousRev) {
+      const existing = await this.getDocument(dbName, docId);
+      if (existing && typeof existing._rev === 'string') {
+        previousRev = existing._rev;
+      }
+    }
+
+    const { rev } = await this.putDocument(dbName, docId, {
+      _id: docId,
+      ...(previousRev ? { _rev: previousRev } : {}),
+      type: 'notes',
+      path: relativePath,
+      deleted: true,
+      mtime: Date.now(),
+    });
+
+    return { id: docId, rev };
+  }
+
   async seedLiveSyncData(
     dbName: string,
     options?: {
