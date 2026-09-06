@@ -84,7 +84,7 @@ Plans:
 **Plans:** TBD
 
 - [x] 03-01-PLAN.md
-- [ ] 03-02-PLAN.md
+- [x] 03-02-PLAN.md
 - [ ] 03-03-PLAN.md
 - [ ] 03-04-PLAN.md
 
@@ -144,7 +144,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Guarded Read-Only Admission | 3/3 | Complete    | 2026-09-03 |
 | 2. Verified Pull Materialization | 4/4 | Complete    | 2026-09-05 |
-| 3. Recoverable Pull Operations | 1/4 | In Progress|  |
+| 3. Recoverable Pull Operations | 2/4 | In Progress|  |
 | 4. Explicitly Armed Bidirectional One-Shot | 0/TBD | Not started | - |
 | 5. Continuous Convergence Daemon | 0/TBD | Not started | - |
 | 6. Packaged Mixed-Client Release Gate | 0/TBD | Not started | - |
