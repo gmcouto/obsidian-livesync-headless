@@ -15,9 +15,38 @@ export const CompatibleButLossyChanges = [
   'chunkSplitterVersion',
 ] as const;
 
+export const SupportedOptionalTweaks = [
+  'useIgnoreFiles',
+  'useCustomRequestHandler',
+  'batch_size',
+  'batches_limit',
+  'useTimeouts',
+  'readChunksOnline',
+  'hashCacheMaxCount',
+  'hashCacheMaxAmount',
+  'concurrencyOfReadChunksOnline',
+  'minimumIntervalOfReadChunksOnline',
+  'ignoreFiles',
+  'syncMaxSizeInMB',
+  'enableChunkSplitterV2',
+  'usePluginSyncV2',
+  'doNotUseFixedRevisionForChunks',
+  'E2EEAlgorithm',
+  'minimumChunkSize',
+  'longLineThreshold',
+  'enableCompression',
+  'useEden',
+  'maxChunksInEden',
+  'maxTotalLengthInEden',
+  'maxAgeInEden',
+  'useSegmenter',
+  'tweakModified',
+] as const;
+
 export const RECOGNIZED_TWEAK_KEYS = new Set<string>([
   ...IncompatibleChanges,
   ...CompatibleButLossyChanges,
+  ...SupportedOptionalTweaks,
 ]);
 
 export interface Blocker {
@@ -121,7 +150,7 @@ export function negotiateCompatibility(
         adoptedTweaks[key] = remoteVal;
         negotiatedSettings[key] = remoteVal;
       }
-    } else if (CompatibleButLossyChanges.includes(key as any)) {
+    } else if (CompatibleButLossyChanges.includes(key as any) || SupportedOptionalTweaks.includes(key as any)) {
       adoptedTweaks[key] = remoteVal;
       negotiatedSettings[key] = remoteVal;
     }

@@ -106,6 +106,14 @@ function parseSaltBytes(rawSalt?: string): Uint8Array | undefined {
   if (/^[0-9a-fA-F]+$/.test(rawSalt) && rawSalt.length % 2 === 0) {
     return hexStringToUint8Array(rawSalt);
   }
+  try {
+    const buf = Buffer.from(rawSalt, 'base64');
+    if (buf.length > 0) {
+      return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+    }
+  } catch {
+    // Fall back to text encoder
+  }
   return new TextEncoder().encode(rawSalt);
 }
 
@@ -260,7 +268,8 @@ export async function assembleChunks(
   children: readonly string[],
   expectedSize: number,
   fetchChunk: (id: string) => Promise<CouchDbDocument | null>,
-  options?: DecodeOptions
+  options?: DecodeOptions,
+  isBinary = false
 ): Promise<AssembleChunksResult> {
   if ((!children || children.length === 0) && expectedSize > 0) {
     return {
@@ -305,7 +314,11 @@ export async function assembleChunks(
         id,
       };
     }
-    parts.push(new TextEncoder().encode(leaf.data));
+    if (isBinary) {
+      parts.push(Buffer.from(leaf.data, 'base64'));
+    } else {
+      parts.push(new TextEncoder().encode(leaf.data));
+    }
   }
 
   const bytes = concatBytes(parts);
@@ -438,7 +451,8 @@ export async function decodeNoteLeaf(
       };
     }
 
-    const assembled = await assembleChunks(children, expectedSize, options.fetchChunk, options);
+    const isBinary = type === EntryTypes.NOTE_BINARY;
+    const assembled = await assembleChunks(children, expectedSize, options.fetchChunk, options, isBinary);
     if (!assembled.ok) {
       return failureFromAssemble(assembled, path);
     }

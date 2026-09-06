@@ -36,6 +36,14 @@ function parseSaltBytes(rawSalt?: string): Uint8Array | undefined {
   if (/^[0-9a-fA-F]+$/.test(rawSalt) && rawSalt.length % 2 === 0) {
     return hexStringToUint8Array(rawSalt);
   }
+  try {
+    const buf = Buffer.from(rawSalt, 'base64');
+    if (buf.length > 0) {
+      return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+    }
+  } catch {
+    // Fall back to text encoder
+  }
   return new TextEncoder().encode(rawSalt);
 }
 
