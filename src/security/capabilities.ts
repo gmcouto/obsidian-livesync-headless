@@ -1,6 +1,8 @@
 const ReadCapabilityBrand = Symbol('ReadCapability');
 const AdmissionCapabilityBrand = Symbol('AdmissionCapability');
 const VaultReflectCapabilityBrand = Symbol('VaultReflectCapability');
+const WriteCapabilityBrand = Symbol('WriteCapability');
+const ArmedSyncCapabilityBrand = Symbol('ArmedSyncCapability');
 
 export interface ReadCapability {
   readonly [ReadCapabilityBrand]: true;
@@ -22,6 +24,26 @@ export interface VaultReflectCapability {
   readonly [VaultReflectCapabilityBrand]: true;
   readonly baseUrl: URL;
   readonly databaseName: string;
+  readonly vaultRoot: string;
+  readonly issuedAt: Date;
+}
+
+export interface WriteCapability {
+  readonly [WriteCapabilityBrand]: true;
+  readonly baseUrl: URL;
+  readonly databaseName: string;
+  readonly grantId: string;
+  readonly remoteFingerprint: string;
+  readonly vaultRoot: string;
+  readonly issuedAt: Date;
+}
+
+export interface ArmedSyncCapability {
+  readonly [ArmedSyncCapabilityBrand]: true;
+  readonly baseUrl: URL;
+  readonly databaseName: string;
+  readonly grantId: string;
+  readonly remoteFingerprint: string;
   readonly vaultRoot: string;
   readonly issuedAt: Date;
 }
@@ -65,6 +87,42 @@ export function createVaultReflectCapability(
   };
 }
 
+export function createWriteCapability(
+  baseUrl: URL,
+  databaseName: string,
+  grantId: string,
+  remoteFingerprint: string,
+  vaultRoot: string
+): WriteCapability {
+  return {
+    [WriteCapabilityBrand]: true,
+    baseUrl: new URL(baseUrl.href),
+    databaseName,
+    grantId,
+    remoteFingerprint,
+    vaultRoot,
+    issuedAt: new Date(),
+  };
+}
+
+export function createArmedSyncCapability(
+  baseUrl: URL,
+  databaseName: string,
+  grantId: string,
+  remoteFingerprint: string,
+  vaultRoot: string
+): ArmedSyncCapability {
+  return {
+    [ArmedSyncCapabilityBrand]: true,
+    baseUrl: new URL(baseUrl.href),
+    databaseName,
+    grantId,
+    remoteFingerprint,
+    vaultRoot,
+    issuedAt: new Date(),
+  };
+}
+
 export function isReadCapability(cap: unknown): cap is ReadCapability {
   return Boolean(cap && typeof cap === 'object' && ReadCapabilityBrand in cap);
 }
@@ -75,4 +133,12 @@ export function isAdmissionCapability(cap: unknown): cap is AdmissionCapability 
 
 export function isVaultReflectCapability(cap: unknown): cap is VaultReflectCapability {
   return Boolean(cap && typeof cap === 'object' && VaultReflectCapabilityBrand in cap);
+}
+
+export function isWriteCapability(cap: unknown): cap is WriteCapability {
+  return Boolean(cap && typeof cap === 'object' && WriteCapabilityBrand in cap);
+}
+
+export function isArmedSyncCapability(cap: unknown): cap is ArmedSyncCapability {
+  return Boolean(cap && typeof cap === 'object' && ArmedSyncCapabilityBrand in cap);
 }
