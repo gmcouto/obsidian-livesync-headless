@@ -6,6 +6,7 @@ import { verifySyncinfo } from '../../livesync/syncinfo.js';
 import { negotiateCompatibility, computeFingerprint } from '../../livesync/negotiation.js';
 import { openDatabase } from '../../storage/sqlite.js';
 import { WriteGrantRepo } from '../../storage/write-grant-repo.js';
+import { AdmissionRepository } from '../../storage/admission-repo.js';
 import { OutcomeCategory, EXIT_CODES } from '../../diagnostics/outcomes.js';
 
 export interface ArmCommandOptions {
@@ -101,6 +102,21 @@ export async function runArmCommand(options: ArmCommandOptions): Promise<number>
       commonlibVersion: '0.1.21',
       bootstrapGeneration: probeResult.versionDoc?._rev || '1',
     };
+
+    const admissionRepo = new AdmissionRepository(db);
+    admissionRepo.saveAdmission({
+      remoteFingerprint: negotiation.remoteFingerprint,
+      couchdbUrl: allowedBaseUrl.href,
+      databaseName,
+      couchdbVersion: probeResult.databaseInfo?.version ?? '3.5.2',
+      versionInfoRev: probeResult.versionDoc?._rev || '1',
+      milestoneRev: probeResult.milestoneDoc?._rev || '1',
+      syncParamsRev: probeResult.syncParamsDoc?._rev ?? null,
+      negotiatedSettingsHash: negotiation.negotiatedSettingsHash,
+      negotiatedSettingsJson: JSON.stringify(negotiation.negotiatedSettings),
+      updateSeq: '0',
+      admittedAt: new Date().toISOString(),
+    });
 
     const grant = grantRepo.issueGrant(binding);
 

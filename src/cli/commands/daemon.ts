@@ -84,15 +84,13 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
         return EXIT_CODES.CONFIG_ERROR;
       }
 
-      capability = createWriteCapability({
-        grantId: activeGrant.grantId,
-        remoteFingerprint: activeGrant.remoteFingerprint,
-        vaultRoot: activeGrant.vaultRoot,
-        settingsHash: activeGrant.settingsHash,
-        commonlibVersion: activeGrant.commonlibVersion,
-        bootstrapGeneration: activeGrant.bootstrapGeneration,
-        issuedAt: activeGrant.issuedAt,
-      });
+      capability = createWriteCapability(
+        allowedBaseUrl,
+        databaseName,
+        activeGrant.grantId,
+        activeGrant.remoteFingerprint,
+        activeGrant.vaultRoot
+      );
     } finally {
       db.close();
     }

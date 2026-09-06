@@ -187,9 +187,9 @@ export class ContinuousEngine extends EventEmitter {
         const verification = grantRepo.verifyGrantBinding(this.activeCapability.grantId, {
           remoteFingerprint: this.remoteFingerprint,
           vaultRoot: this.options.vaultRoot,
-          settingsHash: this.activeCapability.settingsHash,
-          commonlibVersion: this.activeCapability.commonlibVersion,
-          bootstrapGeneration: this.activeCapability.bootstrapGeneration,
+          settingsHash: latestAdmission.negotiatedSettingsHash,
+          commonlibVersion: '0.1.21',
+          bootstrapGeneration: latestAdmission.versionInfoRev,
         });
 
         if (!verification.valid) {
@@ -207,6 +207,24 @@ export class ContinuousEngine extends EventEmitter {
   }
 
   private async executeCatchUpPass(): Promise<void> {
+    const infoUrl = new URL(`/${encodeURIComponent(this.options.databaseName)}`, this.options.baseUrl);
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (this.options.credentials?.username || this.options.credentials?.password) {
+      headers['Authorization'] = `Basic ${Buffer.from(`${this.options.credentials?.username ?? ''}:${this.options.credentials?.password ?? ''}`).toString('base64')}`;
+    }
+    let updateSeq = '0';
+    try {
+      const res = await (this.options.fetch ?? globalThis.fetch)(infoUrl.toString(), { headers });
+      if (res.ok) {
+        const info = (await res.json()) as Record<string, unknown>;
+        if (info.update_seq) {
+          updateSeq = String(info.update_seq);
+        }
+      }
+    } catch {
+      // Ignore network errors during info fetch; proceed with catch-up
+    }
+
     if (this.activeCapability) {
       const result = await this.syncCoordinator.sync(this.activeCapability);
       if (!result.ok && result.conflicts.length > 0) {
@@ -219,7 +237,8 @@ export class ContinuousEngine extends EventEmitter {
         vaultRoot: this.options.vaultRoot,
         statePath: this.options.statePath,
         stateRoot: this.options.stateRoot,
-        dryRun: true,
+        dryRun: false,
+        pullOnly: true,
         credentials: this.options.credentials,
         encryptionPassphrase: this.options.encryptionPassphrase,
         algorithm: this.options.algorithm,
@@ -230,11 +249,26 @@ export class ContinuousEngine extends EventEmitter {
         customChunkSize: this.options.customChunkSize,
         minimumChunkSize: this.options.minimumChunkSize,
         remoteFingerprint: this.remoteFingerprint,
+        updateSeq,
         fetch: this.options.fetch,
       });
       const result = await readOnlyCoordinator.sync();
       if (!result.ok && result.conflicts.length > 0) {
         this.emit('conflicts', result.conflicts);
+      }
+    }
+
+    if (updateSeq !== '0' || this.remoteFingerprint) {
+      const db = openDatabase(this.options.statePath);
+      try {
+        const checkpointRepo = new CheckpointRepository(db);
+        checkpointRepo.saveCheckpoint({
+          remoteFingerprint: this.remoteFingerprint,
+          lastUpdateSeq: updateSeq,
+          completedAt: new Date().toISOString(),
+        });
+      } finally {
+        db.close();
       }
     }
   }
@@ -342,6 +376,10 @@ export class ContinuousEngine extends EventEmitter {
     } catch (err: unknown) {
       this.emit('warning', `Periodic scan failed: ${(err as Error).message}`);
     }
+  }
+
+  async triggerManualScan(): Promise<void> {
+    return this.triggerPeriodicScan();
   }
 
   async stop(timeoutMs = 10000): Promise<void> {

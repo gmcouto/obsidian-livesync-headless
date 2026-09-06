@@ -61,6 +61,10 @@ export class ShutdownHandler {
     }
   }
 
+  async initiateShutdown(signal: 'SIGINT' | 'SIGTERM' = 'SIGTERM'): Promise<void> {
+    return this.handleSignal(signal);
+  }
+
   async handleSignal(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
     if (this.isShuttingDown) {
       this.logger(`Received second ${signal} — forcing immediate process termination.`);

@@ -28,6 +28,7 @@ export interface SyncCoordinatorOptions {
   readonly statePath: string;
   readonly stateRoot?: string;
   readonly dryRun: boolean;
+  readonly pullOnly?: boolean;
   readonly credentials?: { username?: string; password?: string };
   readonly encryptionPassphrase?: string;
   readonly algorithm?: string;
@@ -65,7 +66,7 @@ export class SyncCoordinator {
   }
 
   async sync(capability?: WriteCapability | ArmedSyncCapability): Promise<SyncExecutionResult> {
-    if (!this.options.dryRun && !capability) {
+    if (!this.options.dryRun && !this.options.pullOnly && !capability) {
       throw new Error('SyncCoordinator requires WriteCapability or ArmedSyncCapability when not in dry-run mode.');
     }
 
@@ -244,6 +245,9 @@ export class SyncCoordinator {
           provenanceRepo.deleteProvenance(action.path);
           appliedCount++;
         } else if (action.kind === 'push-create') {
+          if (this.options.pullOnly) {
+            continue;
+          }
           const pushRes = await pushAdapter.pushFile(
             {
               path: action.path,
@@ -266,6 +270,9 @@ export class SyncCoordinator {
           });
           appliedCount++;
         } else if (action.kind === 'push-update') {
+          if (this.options.pullOnly) {
+            continue;
+          }
           const pushRes = await pushAdapter.pushFile(
             {
               path: action.path,
@@ -289,6 +296,9 @@ export class SyncCoordinator {
           });
           appliedCount++;
         } else if (action.kind === 'push-delete') {
+          if (this.options.pullOnly) {
+            continue;
+          }
           const delRes = await deletionWriter.writeDeletion(action.path, action.baseRev, capability!);
           if (!delRes.ok) {
             errors.push(`Failed to push deletion '${action.path}': ${delRes.error}`);

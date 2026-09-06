@@ -133,10 +133,19 @@ export class FileReconciler {
     try {
       const provenanceRepo = new ProvenanceRepository(db);
       const quarantineRepo = new QuarantineRepository(db);
-      const prov = provenanceRepo.getByPath(relativePath);
 
-      // 1. Authoritative local read
-      const fullLocalPath = join(this.options.vaultRoot, relativePath);
+      // 1. Authoritative remote read
+      const remote = await this.fetchRemoteDocument(relativePath);
+      const targetPath = remote?.path && remote.path.length > 0 ? remote.path : relativePath;
+
+      if (isReservedOrIgnoredPath(targetPath)) {
+        return { path: targetPath, action: 'skipped', success: true };
+      }
+
+      const prov = provenanceRepo.getByPath(targetPath);
+
+      // 2. Authoritative local read
+      const fullLocalPath = join(this.options.vaultRoot, targetPath);
       let localExists = false;
       let localBytes: Uint8Array | null = null;
       let localSha256 = '';
@@ -155,16 +164,13 @@ export class FileReconciler {
         const nodeErr = err as NodeJS.ErrnoException;
         if (nodeErr.code !== 'ENOENT') {
           return {
-            path: relativePath,
+            path: targetPath,
             action: 'skipped',
             success: false,
-            error: `Failed to stat local file '${relativePath}': ${nodeErr.message}`,
+            error: `Failed to stat local file '${targetPath}': ${nodeErr.message}`,
           };
         }
       }
-
-      // 2. Authoritative remote read
-      const remote = await this.fetchRemoteDocument(relativePath);
 
       // 3. Evaluation & Action Decision
       // Case A: File exists on both Local and Remote
@@ -173,7 +179,7 @@ export class FileReconciler {
           // Content identical on both sides: update provenance if needed
           if (!prov || prov.remoteRevision !== remote.sourceRevision || prov.contentSha256 !== localSha256) {
             provenanceRepo.saveProvenance({
-              path: relativePath,
+              path: targetPath,
               remoteRevision: remote.sourceRevision,
               contentSha256: localSha256,
               observedMtime: localMtime,
@@ -181,7 +187,7 @@ export class FileReconciler {
               reflectedAt: new Date().toISOString(),
             });
           }
-          return { path: relativePath, action: 'noop', success: true };
+          return { path: targetPath, action: 'noop', success: true };
         }
 
         const remoteMatchesProv = prov && remote.sourceRevision === prov.remoteRevision;
@@ -189,13 +195,13 @@ export class FileReconciler {
 
         if (remoteMatchesProv && !localMatchesProv) {
           // Local modified, remote unchanged: push update
-          return await this.executePushUpdate(relativePath, localBytes!, localSha256, localMtime, prov.remoteRevision, provenanceRepo);
+          return await this.executePushUpdate(targetPath, localBytes!, localSha256, localMtime, prov.remoteRevision, provenanceRepo);
         } else if (!remoteMatchesProv && localMatchesProv) {
           // Remote modified, local unchanged: pull update
-          return await this.executePull(relativePath, remote.bytes, remote.sourceRevision, remote.contentSha256, provenanceRepo);
+          return await this.executePull(targetPath, remote.bytes, remote.sourceRevision, remote.contentSha256, provenanceRepo);
         } else {
           // Conflict: both modified independently
-          return await this.handleConflict(relativePath, localBytes!, localSha256, remote.bytes, remote.sourceRevision);
+          return await this.handleConflict(targetPath, localBytes!, localSha256, remote.bytes, remote.sourceRevision);
         }
       }
 
@@ -203,19 +209,19 @@ export class FileReconciler {
       if (localExists && (!remote || remote.deleted)) {
         if (!prov) {
           // New local file: push create
-          return await this.executePushCreate(relativePath, localBytes!, localSha256, localMtime, provenanceRepo);
+          return await this.executePushCreate(targetPath, localBytes!, localSha256, localMtime, provenanceRepo);
         } else if (remote?.deleted) {
           // Remote deleted while local modified or retained
           if (localSha256 === prov.contentSha256) {
             // Local untouched: reflect remote deletion locally
-            return await this.executePullDelete(relativePath, remote.sourceRevision, provenanceRepo, quarantineRepo);
+            return await this.executePullDelete(targetPath, remote.sourceRevision, provenanceRepo, quarantineRepo);
           } else {
             // Local modified after remote deleted: conflict
-            return await this.handleConflict(relativePath, localBytes!, localSha256, new Uint8Array(), remote.sourceRevision);
+            return await this.handleConflict(targetPath, localBytes!, localSha256, new Uint8Array(), remote.sourceRevision);
           }
         } else {
           // Prov exists but no remote: push create
-          return await this.executePushCreate(relativePath, localBytes!, localSha256, localMtime, provenanceRepo);
+          return await this.executePushCreate(targetPath, localBytes!, localSha256, localMtime, provenanceRepo);
         }
       }
 
@@ -223,14 +229,14 @@ export class FileReconciler {
       if (!localExists && remote && !remote.deleted) {
         if (!prov) {
           // New remote file: pull create
-          return await this.executePull(relativePath, remote.bytes, remote.sourceRevision, remote.contentSha256, provenanceRepo);
+          return await this.executePull(targetPath, remote.bytes, remote.sourceRevision, remote.contentSha256, provenanceRepo);
         } else {
           if (remote.sourceRevision === prov.remoteRevision) {
             // Local deletion, remote untouched: push deletion
-            return await this.executePushDelete(relativePath, prov.remoteRevision, provenanceRepo);
+            return await this.executePushDelete(targetPath, prov.remoteRevision, provenanceRepo);
           } else {
             // Local deleted while remote modified: conflict (preserve remote by pulling)
-            return await this.executePull(relativePath, remote.bytes, remote.sourceRevision, remote.contentSha256, provenanceRepo);
+            return await this.executePull(targetPath, remote.bytes, remote.sourceRevision, remote.contentSha256, provenanceRepo);
           }
         }
       }
@@ -238,18 +244,19 @@ export class FileReconciler {
       // Case D: File deleted on both sides or missing
       if (!localExists && (!remote || remote.deleted)) {
         if (prov) {
-          provenanceRepo.deleteProvenance(relativePath);
+          provenanceRepo.deleteProvenance(targetPath);
         }
-        return { path: relativePath, action: 'noop', success: true };
+        return { path: targetPath, action: 'noop', success: true };
       }
 
-      return { path: relativePath, action: 'noop', success: true };
+      return { path: targetPath, action: 'noop', success: true };
     } finally {
       db.close();
     }
   }
 
   private async fetchRemoteDocument(relativePath: string): Promise<{
+    path: string;
     sourceRevision: string;
     bytes: Uint8Array;
     contentSha256: string;
@@ -271,10 +278,21 @@ export class FileReconciler {
     }
 
     try {
-      const response = await this.guardedFetch(targetUrl.toString(), {
+      let response = await this.guardedFetch(targetUrl.toString(), {
         method: 'GET',
         headers,
       });
+
+      if (response.status === 404 && expectedDocId !== relativePath) {
+        const fallbackUrl = new URL(
+          `/${encodeURIComponent(this.options.databaseName)}/${encodeURIComponent(relativePath)}`,
+          this.options.baseUrl
+        );
+        response = await this.guardedFetch(fallbackUrl.toString(), {
+          method: 'GET',
+          headers,
+        });
+      }
 
       if (response.status === 404) {
         return null;
@@ -288,7 +306,9 @@ export class FileReconciler {
       const type = typeof doc.type === 'string' ? doc.type : 'unknown';
 
       if (doc._deleted === true || doc.deleted === true) {
+        const decodedPath = typeof doc.path === 'string' ? doc.path : relativePath;
         return {
+          path: decodedPath,
           sourceRevision: String(doc._rev ?? ''),
           bytes: new Uint8Array(),
           contentSha256: '',
@@ -307,6 +327,7 @@ export class FileReconciler {
 
       const hash = createHash('sha256').update(decoded.bytes).digest('hex');
       return {
+        path: decoded.path,
         sourceRevision: decoded.sourceRevision,
         bytes: decoded.bytes,
         contentSha256: hash,

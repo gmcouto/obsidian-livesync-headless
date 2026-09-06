@@ -104,7 +104,7 @@ describe('ContinuousEngine', () => {
       vaultRoot: tmpVault,
       settingsHash: 'shash-123',
       commonlibVersion: '0.1.21',
-      bootstrapGeneration: 'gen-1',
+      bootstrapGeneration: '1-v',
     });
     db.close();
 
