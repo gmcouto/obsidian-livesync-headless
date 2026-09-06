@@ -12,7 +12,7 @@ The MVP advances through six guarded vertical slices: establish structurally rea
 - [x] **Phase 4: Explicitly Armed Bidirectional One-Shot** - Converge local and remote file state once through a fresh, scope-bound write grant and preservation-first reconciliation. (completed 2026-09-06)
 - [ ] **Phase 5: Continuous Convergence Daemon** - Reuse the one-shot safety model for bounded, restart-safe continuous synchronization.
 - [x] **Phase 6: Packaged Mixed-Client Release Gate** - Ship a single executable only after packaged compatibility, integrity, safety, and mixed-client evidence passes. (completed 2026-09-06)
-- [ ] **Phase 7: Environment Variable Configuration and Minimal Docker Daemon Distribution** - Support purely environment-variable-driven configuration without config files, and provide an automated multi-stage minimal Docker image and GitHub Actions release workflow.
+- [x] **Phase 7: Environment Variable Configuration and Minimal Docker Daemon Distribution** - Support purely environment-variable-driven configuration without config files, and provide an automated multi-stage minimal Docker image and GitHub Actions release workflow. (completed 2026-09-06)
 
 ## Phase Details
 
@@ -164,7 +164,7 @@ Plans:
 | 4. Explicitly Armed Bidirectional One-Shot | 4/4 | Complete    | 2026-09-06 |
 | 5. Continuous Convergence Daemon | 4/4 | Complete    | 2026-09-06 |
 | 6. Packaged Mixed-Client Release Gate | 4/4 | Complete    | 2026-09-06 |
-| 7. Environment Variable Configuration and Minimal Docker Daemon Distribution | 0/3 | Not started | - |
+| 7. Environment Variable Configuration and Minimal Docker Daemon Distribution | 3/3 | Complete    | 2026-09-06 |
 
 ### Phase 7: Environment Variable Configuration and Minimal Docker Daemon Distribution
 
@@ -179,11 +179,10 @@ Plans:
   4. Docker container executes the headless daemon by default upon container start.
   5. GitHub Actions workflow triggers on published GitHub releases to build and publish the multi-stage minimal Docker image tagged with the release version and update the `latest` tag on GHCR.
 
-**Plans:** 0/3 plans complete
+**Plans:** 3/3 plans complete
 
 Plans:
 
-- [ ] 07-01-PLAN.md — Environment Variable Configuration Synthesis & CLI Option Decoupling (ENV-01, ENV-02)
-- [ ] 07-02-PLAN.md — Multi-Stage Dockerfile & Containerized Daemon Defaults (DOCKER-01, DOCKER-02, DOCKER-03)
-- [ ] 07-03-PLAN.md — GitHub Actions Release Workflow & Documentation (CI-01)
-
+- [x] 07-01-PLAN.md — Environment Variable Configuration Synthesis & CLI Option Decoupling (ENV-01, ENV-02)
+- [x] 07-02-PLAN.md — Multi-Stage Dockerfile & Containerized Daemon Defaults (DOCKER-01, DOCKER-02, DOCKER-03)
+- [x] 07-03-PLAN.md — GitHub Actions Release Workflow & Documentation (CI-01)

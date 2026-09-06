@@ -78,6 +78,15 @@
 - [x] **DIST-04**: User can rely on release tests covering current-client encrypted and obfuscated text/binary files, chunks, logical deletion, concurrent edits, conflict propagation, renames, restarts, and missing or corrupt content against disposable CouchDB instances.
 - [x] **DIST-05**: User can rely on the packaged executable passing audits for forbidden database operations, unexpected runtime dependencies, out-of-scope providers, and embedded secrets before release.
 
+### Environment Variable Configuration and Container Distribution
+
+- [x] **ENV-01**: User can run any CLI command (`daemon`, `sync`, `inspect`, `status`, `arm`, `pull`) purely through environment variables without supplying or generating a YAML config file.
+- [x] **ENV-02**: Environment variables (`LIVESYNC_*` prefix) can seamlessly override or substitute for YAML configuration with full Zod schema validation and secret redaction.
+- [x] **DOCKER-01**: Minimal multi-stage Docker build separating dependency installation from compilation, producing a lightweight runtime container containing only the standalone executable and required system dependencies.
+- [x] **DOCKER-02**: Docker image provides sensible defaults syncing to `/vault` (writable mount) and storing SQLite state in `/data/.state.db` (persistent mount), with clear volume mounting guidance.
+- [x] **DOCKER-03**: Docker container executes the headless continuous daemon by default upon container start.
+- [x] **CI-01**: GitHub Actions workflow triggers on published GitHub releases to build and publish the multi-stage minimal Docker image tagged with the release version and update the `latest` tag on GHCR.
+
 ## v2 Requirements
 
 ### Inspection and Recovery
@@ -171,11 +180,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DIST-03 | Phase 6 | Complete |
 | DIST-04 | Phase 6 | Complete |
 | DIST-05 | Phase 6 | Complete |
+| ENV-01 | Phase 7 | Complete |
+| ENV-02 | Phase 7 | Complete |
+| DOCKER-01 | Phase 7 | Complete |
+| DOCKER-02 | Phase 7 | Complete |
+| DOCKER-03 | Phase 7 | Complete |
+| CI-01 | Phase 7 | Complete |
 
 **Coverage:**
 
-- v1 requirements: 52 total
-- Mapped to phases: 52
+- v1 requirements: 58 total
+- Mapped to phases: 58
 - Unmapped: 0 ✓
 
 ---

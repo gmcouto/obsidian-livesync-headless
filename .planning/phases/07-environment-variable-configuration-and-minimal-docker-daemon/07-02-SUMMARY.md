@@ -22,7 +22,7 @@ Implemented a multi-stage `Dockerfile` and `.dockerignore` to package obsidian-l
 1. **Multi-Stage Build Pipeline (`Dockerfile`, `.dockerignore`)**:
    - **Stage 1 (`builder`)**: Uses `node:24-bookworm-slim` to install dependencies and run `npm run build:sea`, producing the self-contained Single-Executable Application (SEA).
    - **Stage 2 (`runner`)**: Uses `debian:bookworm-slim`, installs `ca-certificates` and `tzdata`, copies the standalone binary to `/usr/local/bin/obsidian-livesync-headless`, and cleans up all package manager caches.
-   - **Volume Configuration & Defaults**: Creates `/vault` and `/data`, declares `VOLUME ["/vault", "/data"]`, and defaults `ENV LIVESYNC_VAULT_PATH=/vault` and `ENV LIVESYNC_DATABASE_PATH=/data/.state.db`.
+   - **Volume Configuration & Defaults**: Creates `/vault` and `/data`, declares `VOLUME ["/vault", "/data"]`, and defaults the environment variables for vault path and state database path.
    - **Daemon by Default**: Configures `ENTRYPOINT ["/usr/local/bin/obsidian-livesync-headless"]` with `CMD ["daemon"]`.
 
 2. **Automated Integration Test Suite (`tests/integration/docker-daemon.test.ts`)**:
@@ -32,7 +32,7 @@ Implemented a multi-stage `Dockerfile` and `.dockerignore` to package obsidian-l
    - Validated default container execution initiating daemon convergence mode directly.
 
 ## Verification
-- `docker build -t obsidian-livesync-headless:test .`: Succeeded with zero errors.
-- `npx vitest run tests/integration/docker-daemon.test.ts`: 4/4 integration tests passed.
+- Docker image build succeeded with zero errors.
+- Integration tests passed via `tests/integration/docker-daemon.test.ts`.
 
 ## Self-Check: PASSED

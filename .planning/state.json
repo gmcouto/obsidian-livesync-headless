@@ -1,0 +1,48 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Guarded Read-Only Admission",
+      "status": "complete"
+    },
+    {
+      "number": "2",
+      "name": "Verified Pull Materialization",
+      "status": "complete"
+    },
+    {
+      "number": "3",
+      "name": "Recoverable Pull Operations",
+      "status": "complete"
+    },
+    {
+      "number": "4",
+      "name": "Explicitly Armed Bidirectional One-Shot",
+      "status": "complete"
+    },
+    {
+      "number": "5",
+      "name": "Continuous Convergence Daemon",
+      "status": "complete"
+    },
+    {
+      "number": "6",
+      "name": "Packaged Mixed-Client Release Gate",
+      "status": "complete"
+    },
+    {
+      "number": "7",
+      "name": "Environment Variable Configuration and Minimal Docker Daemon Distribution",
+      "status": "complete"
+    }
+  ],
+  "next": {
+    "command": "/gsd-progress --next",
+    "label": "Advance to the next step (plan phase 5)",
+    "reason": "Phase 5 of 7 — needs a plan"
+  },
+  "updated_at": "2026-09-06T19:28:21.462Z"
+}
