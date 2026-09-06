@@ -123,12 +123,12 @@ Plans:
   4. User sees the daemon reconnect after transient outages with bounded jittered backoff and reconcile on startup, periodically, and after errors; unsafe compatibility, provenance, corruption, or configuration produces a visible degraded read-only or blocked state.
   5. User can stop the daemon with normal process signals and observe deterministic intake shutdown, safe draining or journaling of in-flight work, durable state persistence, and process exit.
 
-**Plans:** 0/4 plans complete
+**Plans:** 4/4 plans complete
 
- - [ ] 05-01-PLAN.md — Local filesystem watcher, debouncer & loop suppressor (chokidar@5.0.0, FsWatcher, LoopSuppressor)
- - [ ] 05-02-PLAN.md — CouchDB changes feed consumer & resilient reconnection (ChangesConsumer, ReconnectionManager, CheckpointWindow)
- - [ ] 05-03-PLAN.md — Continuous daemon engine, worker pool & single-file reconciler (FileWorkerPool, FileReconciler, DaemonStateMachine, ContinuousEngine)
- - [ ] 05-04-PLAN.md — CLI command, graceful shutdown & CouchDB integration suite (ShutdownHandler, daemon CLI, Testcontainers integration tests)
+ - [x] 05-01-PLAN.md — Local filesystem watcher, debouncer & loop suppressor (chokidar@5.0.0, FsWatcher, LoopSuppressor)
+ - [x] 05-02-PLAN.md — CouchDB changes feed consumer & resilient reconnection (ChangesConsumer, ReconnectionManager, CheckpointWindow)
+ - [x] 05-03-PLAN.md — Continuous daemon engine, worker pool & single-file reconciler (FileWorkerPool, FileReconciler, DaemonStateMachine, ContinuousEngine)
+ - [x] 05-04-PLAN.md — CLI command, graceful shutdown & CouchDB integration suite (ShutdownHandler, daemon CLI, Testcontainers integration tests)
 
 ### Phase 6: Packaged Mixed-Client Release Gate
 
@@ -156,5 +156,5 @@ Plans:
 | 2. Verified Pull Materialization | 4/4 | Complete    | 2026-09-05 |
 | 3. Recoverable Pull Operations | 4/4 | Complete    | 2026-09-06 |
 | 4. Explicitly Armed Bidirectional One-Shot | 4/4 | Complete    | 2026-09-06 |
-| 5. Continuous Convergence Daemon | 0/4 | In progress | - |
+| 5. Continuous Convergence Daemon | 3/4 | In Progress|  |
 | 6. Packaged Mixed-Client Release Gate | 0/TBD | Not started | - |
