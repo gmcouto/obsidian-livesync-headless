@@ -68,7 +68,7 @@ Commands:
   version                     Show build and compatibility identity
 
 Options:
-  -c, --config <path>         Path to YAML configuration file
+  -c, --config <path>         Path to YAML configuration file (optional when environment variables are set)
       --write                 Enable bidirectional synchronization in daemon mode (requires active write grant)
       --periodic-scan-sec <n> Periodic full reconciliation interval in seconds (default: 300)
       --concurrency <n>       Max concurrent file workers (default: 4)
@@ -165,9 +165,16 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
       return EXIT_CODES.SUCCESS;
     }
 
+    const hasEnvConfig = Boolean(
+      process.env.LIVESYNC_COUCHDB_URL ||
+        process.env.COUCHDB_URL ||
+        process.env.LIVESYNC_VAULT_PATH ||
+        process.env.VAULT_PATH
+    );
+
     if (
       parsed.options.help ||
-      (args.length === 0 && !parsed.command && !parsed.options.config)
+      (args.length === 0 && !parsed.command && !parsed.options.config && !hasEnvConfig)
     ) {
       process.stdout.write(CLI_HELP);
       return EXIT_CODES.SUCCESS;
@@ -180,11 +187,6 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
     });
 
     if (parsed.command === 'status') {
-      if (!parsed.options.config) {
-        logger.error('Missing required configuration file (--config <path>)');
-        return EXIT_CODES.CONFIG_ERROR;
-      }
-
       return await runStatusCommand({
         configPath: parsed.options.config,
         json: parsed.options.json,
@@ -192,11 +194,6 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
     }
 
     if (parsed.command === 'daemon') {
-      if (!parsed.options.config) {
-        logger.error('Missing required configuration file (--config <path>)');
-        return EXIT_CODES.CONFIG_ERROR;
-      }
-
       return await runDaemonCommand({
         configPath: parsed.options.config,
         write: parsed.options.write,
@@ -208,11 +205,6 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
     }
 
     if (parsed.command === 'arm') {
-      if (!parsed.options.config) {
-        logger.error('Missing required configuration file (--config <path>)');
-        return EXIT_CODES.CONFIG_ERROR;
-      }
-
       return await runArmCommand({
         configPath: parsed.options.config,
         json: parsed.options.json,
@@ -221,11 +213,6 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
     }
 
     if (parsed.command === 'sync') {
-      if (!parsed.options.config) {
-        logger.error('Missing required configuration file (--config <path>)');
-        return EXIT_CODES.CONFIG_ERROR;
-      }
-
       return await runSyncCommand({
         configPath: parsed.options.config,
         dryRun: parsed.options.dryRun,
@@ -235,11 +222,6 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
 
     const isPull = parsed.command === 'pull';
     if (isPull) {
-      if (!parsed.options.config) {
-        logger.error('Missing required configuration file (--config <path>)');
-        return EXIT_CODES.CONFIG_ERROR;
-      }
-
       return await runPullCommand({
         configPath: parsed.options.config,
         json: parsed.options.json,
@@ -249,11 +231,6 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
 
     const isInspect = !parsed.command || parsed.command === 'inspect';
     if (isInspect) {
-      if (!parsed.options.config) {
-        logger.error('Missing required configuration file (--config <path>)');
-        return EXIT_CODES.CONFIG_ERROR;
-      }
-
       return await runInspectCommand({
         configPath: parsed.options.config,
         json: parsed.options.json,

@@ -66,7 +66,7 @@ import {
 import { OutcomeCategory, EXIT_CODES } from '../../diagnostics/outcomes.js';
 
 export interface PullCommandOptions {
-  configPath: string;
+  configPath?: string;
   dryRun: boolean;
   json?: boolean;
   redactor?: SecretRedactor;

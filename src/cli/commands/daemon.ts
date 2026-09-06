@@ -13,7 +13,7 @@ import { ShutdownHandler } from '../../daemon/shutdown-handler.js';
 import { OutcomeCategory, EXIT_CODES } from '../../diagnostics/outcomes.js';
 
 export interface DaemonCommandOptions {
-  configPath: string;
+  configPath?: string;
   write?: boolean;
   periodicScanSec?: number;
   concurrency?: number;

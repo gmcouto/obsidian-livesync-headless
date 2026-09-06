@@ -32,8 +32,8 @@ import { SyncCoordinator, type SyncExecutionResult } from '../../domain/sync-coo
 import { OutcomeCategory, EXIT_CODES } from '../../diagnostics/outcomes.js';
 
 export interface SyncCommandOptions {
-  configPath: string;
-  dryRun: boolean;
+  configPath?: string;
+  dryRun?: boolean;
   json?: boolean;
   redactor?: SecretRedactor;
   stdout?: (msg: string) => void;

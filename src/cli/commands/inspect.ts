@@ -30,7 +30,7 @@ import {
 import { OutcomeCategory, EXIT_CODES } from '../../diagnostics/outcomes.js';
 
 export interface InspectCommandOptions {
-  configPath: string;
+  configPath?: string;
   json?: boolean;
   redactor?: SecretRedactor;
   stdout?: (msg: string) => void;

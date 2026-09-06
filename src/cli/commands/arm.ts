@@ -10,7 +10,7 @@ import { AdmissionRepository } from '../../storage/admission-repo.js';
 import { OutcomeCategory, EXIT_CODES } from '../../diagnostics/outcomes.js';
 
 export interface ArmCommandOptions {
-  configPath: string;
+  configPath?: string;
   json?: boolean;
   redactor?: SecretRedactor;
   stdout?: (msg: string) => void;

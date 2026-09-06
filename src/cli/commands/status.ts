@@ -8,7 +8,7 @@ import { CheckpointRepository } from '../../storage/checkpoint-repo.js';
 import { OutcomeCategory, EXIT_CODES } from '../../diagnostics/outcomes.js';
 
 export interface StatusCommandOptions {
-  configPath: string;
+  configPath?: string;
   json?: boolean;
   redactor?: SecretRedactor;
   stdout?: (msg: string) => void;
