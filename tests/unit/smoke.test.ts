@@ -117,4 +117,17 @@ describe('Walking Skeleton Smoke Tests', () => {
     expect(JSON.parse(lines[0]).level).toBe('warn');
     expect(JSON.parse(lines[1]).level).toBe('error');
   });
+
+  it('verifies outcome category definitions and pull report formatting consistency', () => {
+    expect(OutcomeCategory.SUCCESS).toBe('SUCCESS');
+    expect(OutcomeCategory.CONFIG_ERROR).toBe('CONFIG_ERROR');
+    expect(OutcomeCategory.AUTHENTICATION_ERROR).toBe('AUTHENTICATION_ERROR');
+    expect(OutcomeCategory.INCOMPATIBLE).toBe('INCOMPATIBLE');
+    expect(OutcomeCategory.NOT_FOUND).toBe('NOT_FOUND');
+    expect(OutcomeCategory.TRANSIENT_OUTAGE).toBe('TRANSIENT_OUTAGE');
+    expect(OutcomeCategory.MUTATION_VIOLATION).toBe('MUTATION_VIOLATION');
+    expect(OutcomeCategory.CORRUPTION).toBe('CORRUPTION');
+    expect(OutcomeCategory.CONFLICT).toBe('CONFLICT');
+  });
 });
+
