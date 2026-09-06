@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc",
     "build:sea": "node scripts/build-sea.mjs",
-    "audit:release": "tsx scripts/audit-release.ts",
+    "audit:release": "npx tsx scripts/audit-release.ts",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration"
