@@ -21,9 +21,63 @@
 
 ---
 
-## Installation & Packaging
+---
 
-### Standalone Executable (Single-Executable Application)
+## Installation & Deployment Options
+
+### 1. Docker Container (Recommended for Servers & NAS)
+
+Official minimal multi-arch (`linux/amd64`, `linux/arm64`) container images are published to GitHub Container Registry (`ghcr.io`).
+
+#### Quickstart with Docker CLI
+
+```bash
+docker run -d \
+  --name obsidian-livesync \
+  --restart unless-stopped \
+  -v /path/to/my/vault:/vault \
+  -v /path/to/livesync-data:/data \
+  -e LIVESYNC_COUCHDB_URL="https://couchdb.example.com" \
+  -e LIVESYNC_COUCHDB_DATABASE="obsidian-vault" \
+  -e LIVESYNC_COUCHDB_USER="sync_user" \
+  -e LIVESYNC_COUCHDB_PASSWORD="secure_couchdb_password" \
+  -e LIVESYNC_ENCRYPTION_PASSPHRASE="my_e2ee_passphrase" \
+  ghcr.io/vrtmrz/obsidian-livesync-headless:latest
+```
+
+#### Docker Compose Example (`docker-compose.yml`)
+
+```yaml
+version: '3.8'
+
+services:
+  livesync:
+    image: ghcr.io/vrtmrz/obsidian-livesync-headless:latest
+    container_name: obsidian-livesync
+    restart: unless-stopped
+    volumes:
+      - /path/to/my/vault:/vault
+      - /path/to/livesync-data:/data
+    environment:
+      - LIVESYNC_COUCHDB_URL=https://couchdb.example.com
+      - LIVESYNC_COUCHDB_DATABASE=obsidian-vault
+      - LIVESYNC_COUCHDB_USER=sync_user
+      - LIVESYNC_COUCHDB_PASSWORD=secure_couchdb_password
+      - LIVESYNC_ENCRYPTION_PASSPHRASE=my_e2ee_passphrase
+      - LIVESYNC_WRITE=false                  # Set to true once write access is armed
+      - LIVESYNC_PERIODIC_SCAN_SEC=300
+      - LIVESYNC_CONCURRENCY=4
+```
+
+> **Arming Write Access in Docker:**
+> To enable bidirectional write synchronization (`LIVESYNC_WRITE=true`), you must first arm write access for the container volume:
+> ```bash
+> docker exec -it obsidian-livesync /usr/local/bin/obsidian-livesync-headless arm
+> ```
+
+---
+
+### 2. Standalone Executable (Single-Executable Application)
 
 Compile the application into a standalone binary requiring zero host dependencies:
 
@@ -40,7 +94,7 @@ npm run build:sea
 ./dist/obsidian-livesync-headless version
 ```
 
-### Running from Source with Node.js
+### 3. Running from Source with Node.js
 
 ```bash
 # Build TypeScript
@@ -52,7 +106,36 @@ node dist/cli/index.js --help
 
 ---
 
-## Configuration
+## Configuration & Precedence
+
+`obsidian-livesync-headless` supports flexible configuration with strict precedence:
+1. **CLI Flags** (e.g., `--write`, `--periodic-scan-sec`, `--concurrency`)
+2. **Environment Variables** (`LIVESYNC_*` or fallback aliases)
+3. **YAML Configuration File** (`-c, --config <path>`)
+
+When environment variables are provided, the `-c, --config` parameter is optional.
+
+### Environment Variable Reference
+
+| Environment Variable | Fallback Alias | Config Target | Type / Description | Default / Example |
+|---|---|---|---|---|
+| `LIVESYNC_COUCHDB_URL` | `COUCHDB_URL` | `remote.url` | Valid HTTP/S CouchDB endpoint URL (credentials forbidden in URL) | `https://couchdb.example.com` |
+| `LIVESYNC_COUCHDB_DATABASE` | `LIVESYNC_DATABASE_NAME`, `COUCHDB_DATABASE` | `remote.database` | CouchDB database name | `obsidian-vault` |
+| `LIVESYNC_COUCHDB_USER` | `LIVESYNC_COUCHDB_USERNAME`, `COUCHDB_USER` | `remote.username` | CouchDB authentication username | `sync_user` |
+| `LIVESYNC_COUCHDB_PASSWORD` | `COUCHDB_PASSWORD` | `remote.password` | CouchDB authentication password (auto-redacted) | `secretpassword` |
+| `LIVESYNC_VAULT_PATH` | `VAULT_PATH` | `vault.path` | Local filesystem vault path | `/vault` (in Docker) |
+| `LIVESYNC_VAULT_DEDICATED` | — | `vault.dedicated` | Boolean (`true`/`1` or `false`/`0`) indicating dedicated folder | `false` |
+| `LIVESYNC_DATABASE_PATH` | `LIVESYNC_STATE_PATH` | `state.path` | Local SQLite state database path | `/data/.state.db` (in Docker) |
+| `LIVESYNC_ENCRYPTION_PASSPHRASE` | `LIVESYNC_PASSPHRASE` | `encryption.passphrase` | E2EE encryption passphrase (auto-redacted) | `my-e2ee-pass` |
+| `LIVESYNC_ENCRYPTION_ENABLED` | — | `encryption.enabled` | Enable/disable E2EE (defaults to `true` if passphrase set) | `false` |
+| `LIVESYNC_WRITE` | `LIVESYNC_WRITE_MODE` | `cli.write` | Enable bidirectional synchronization in daemon mode | `false` |
+| `LIVESYNC_PERIODIC_SCAN_SEC` | — | `cli.periodicScanSec` | Interval in seconds for full reconciliation scan | `300` |
+| `LIVESYNC_CONCURRENCY` | — | `cli.concurrency` | Maximum concurrent file workers | `4` |
+| `LIVESYNC_DEBOUNCE_MS` | — | `cli.debounceMs` | Watcher debounce window in milliseconds | `300` |
+
+---
+
+## Configuration File (YAML)
 
 Configuration is defined in a YAML file (e.g., `livesync.yaml`). Secrets such as the CouchDB password and encryption passphrase can be supplied as inline strings, referenced from environment variables, or loaded from dedicated secret files.
 
