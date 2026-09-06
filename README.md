@@ -61,8 +61,8 @@ services:
     restart: unless-stopped
     user: "1000:1000"                         # Or match your host UID:GID (e.g., "${UID}:${GID}")
     volumes:
-      - /path/to/my/vault:/vault              # Obsidian vault directory
-      - /path/to/livesync-data:/data          # Optional custom directory for sync state database
+      - /path/to/my/vault:/vault              # Obsidian vault directory (bind mount)
+      - livesync-state:/data                  # Named volume for sync state database
     environment:
       - LIVESYNC_COUCHDB_URL=https://couchdb.example.com
       - LIVESYNC_COUCHDB_DATABASE=obsidian-vault
@@ -73,6 +73,9 @@ services:
       - LIVESYNC_WRITE=false                  # Set to true once write access is armed
       - LIVESYNC_PERIODIC_SCAN_SEC=300
       - LIVESYNC_CONCURRENCY=4
+
+volumes:
+  livesync-state:                             # Managed by Docker; survives container recreation
 ```
 
 > **Arming Write Access in Docker:**
