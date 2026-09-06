@@ -145,7 +145,7 @@ export class PushAdapter {
         isChunkEncrypted = true;
       }
 
-      const hash = await digestHash(dataToStore);
+      const hash = await digestHash(dataToStore as any);
       const chunkId = isChunkEncrypted ? `${PREFIX_ENCRYPTED_CHUNK}${hash}` : `${PREFIX_CHUNK}${hash}`;
 
       preparedChunks.push({

@@ -260,7 +260,7 @@ async function scanLocalFiles(vaultPath: string): Promise<Map<string, LocalFileI
       } else if (entry.isFile()) {
         try {
           const buf = await readFile(full);
-          const h = createHash('sha256').update(buf).digest('hex');
+          const h = createHash('sha256').update(new Uint8Array(buf)).digest('hex');
           map.set(rel, { exists: true, contentSha256: h });
         } catch {
           map.set(rel, { exists: true });

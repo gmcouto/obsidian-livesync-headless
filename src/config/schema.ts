@@ -55,7 +55,8 @@ export const EncryptionConfigSchema = z
 
 export const CliConfigSchema = z
   .object({
-    write: z.boolean().default(false),
+    write: z.union([z.boolean(), z.literal('auto-arm')]).default(false),
+    autoArm: z.boolean().default(false),
     periodicScanSec: z.number().int().positive().optional(),
     concurrency: z.number().int().positive().optional(),
     debounceMs: z.number().int().positive().optional(),

@@ -320,7 +320,7 @@ export class FileReconciler {
         return null;
       }
 
-      const decoded = await decodeNoteLeaf(doc, this.decodeOptions);
+      const decoded = await decodeNoteLeaf(doc as any, this.decodeOptions);
       if (!decoded.ok) {
         return null;
       }

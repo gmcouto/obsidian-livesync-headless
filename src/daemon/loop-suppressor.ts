@@ -28,7 +28,7 @@ export class LoopSuppressor {
 
     let content: Uint8Array;
     try {
-      content = await fs.readFile(fullPath);
+      content = new Uint8Array(await fs.readFile(fullPath));
     } catch (err: unknown) {
       const nodeErr = err as NodeJS.ErrnoException;
       if (nodeErr.code === 'ENOENT') {

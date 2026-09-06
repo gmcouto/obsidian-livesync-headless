@@ -220,7 +220,7 @@ export async function runSyncCommand(options: SyncCommandOptions): Promise<numbe
       databaseName,
       vaultRoot: config.resolvedVaultPath,
       statePath: config.resolvedStatePath,
-      dryRun: options.dryRun,
+      dryRun: Boolean(options.dryRun),
       credentials,
       encryptionPassphrase: config.resolvedSecrets.encryptionPassphrase,
       algorithm,

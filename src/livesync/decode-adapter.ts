@@ -315,7 +315,7 @@ export async function assembleChunks(
       };
     }
     if (isBinary) {
-      parts.push(Buffer.from(leaf.data, 'base64'));
+      parts.push(new Uint8Array(Buffer.from(leaf.data, 'base64')));
     } else {
       parts.push(new TextEncoder().encode(leaf.data));
     }

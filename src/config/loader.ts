@@ -29,6 +29,13 @@ function parseBooleanEnv(val: string | undefined): boolean | undefined {
   return undefined;
 }
 
+function parseWriteEnv(val: string | undefined): boolean | 'auto-arm' | undefined {
+  if (val === undefined || val === '') return undefined;
+  const lower = val.trim().toLowerCase();
+  if (lower === 'auto-arm' || lower === 'autoarm' || lower === 'auto_arm') return 'auto-arm';
+  return parseBooleanEnv(val);
+}
+
 function parseIntegerEnv(val: string | undefined): number | undefined {
   if (val === undefined || val === '') return undefined;
   const parsed = Number(val.trim());
@@ -81,13 +88,19 @@ function extractEnvConfig(env: NodeJS.ProcessEnv): Record<string, any> {
   if (Object.keys(encryption).length > 0) envConfig.encryption = encryption;
 
   // CLI / Daemon defaults
-  const cliWrite = parseBooleanEnv(env.LIVESYNC_WRITE);
+  const cliWrite = parseWriteEnv(env.LIVESYNC_WRITE);
+  const autoArm = parseBooleanEnv(env.LIVESYNC_AUTO_ARM);
   const periodicScanSec = parseIntegerEnv(env.LIVESYNC_PERIODIC_SCAN_SEC);
   const concurrency = parseIntegerEnv(env.LIVESYNC_CONCURRENCY);
   const debounceMs = parseIntegerEnv(env.LIVESYNC_DEBOUNCE_MS);
 
   const cli: Record<string, any> = {};
-  if (cliWrite !== undefined) cli.write = cliWrite;
+  if (cliWrite !== undefined) {
+    cli.write = cliWrite;
+  } else if (autoArm) {
+    cli.write = 'auto-arm';
+  }
+  if (autoArm !== undefined) cli.autoArm = autoArm;
   if (periodicScanSec !== undefined) cli.periodicScanSec = periodicScanSec;
   if (concurrency !== undefined) cli.concurrency = concurrency;
   if (debounceMs !== undefined) cli.debounceMs = debounceMs;

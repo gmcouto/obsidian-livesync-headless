@@ -48,7 +48,7 @@ export async function quarantineVaultFile(
     // 2. Read source file
     let fileBytes: Uint8Array;
     try {
-      fileBytes = await readFileFn(fullVaultPath);
+      fileBytes = new Uint8Array(await readFileFn(fullVaultPath));
     } catch (err) {
       throw new QuarantineError(
         `Failed to read source file from vault at '${fullVaultPath}'`,

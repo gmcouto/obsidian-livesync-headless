@@ -44,6 +44,7 @@ export interface CliOptions {
   dryRun: boolean;
   revoke: boolean;
   write: boolean;
+  autoArm: boolean;
   periodicScanSec?: number;
   concurrency?: number;
   debounceMs?: number;
@@ -70,6 +71,7 @@ Commands:
 Options:
   -c, --config <path>         Path to YAML configuration file (optional when environment variables are set)
       --write                 Enable bidirectional synchronization in daemon mode (requires active write grant)
+      --auto-arm              Enable auto-arm mode (clean/pull/validate/arm automatically before daemon write)
       --periodic-scan-sec <n> Periodic full reconciliation interval in seconds (default: 300)
       --concurrency <n>       Max concurrent file workers (default: 4)
       --debounce-ms <n>       Local filesystem watcher debounce window in ms (default: 300)
@@ -94,6 +96,10 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): {
         short: 'c',
       },
       write: {
+        type: 'boolean',
+        default: false,
+      },
+      'auto-arm': {
         type: 'boolean',
         default: false,
       },
@@ -137,6 +143,7 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): {
     options: {
       config: values.config,
       write: values.write ?? false,
+      autoArm: values['auto-arm'] ?? false,
       periodicScanSec: values['periodic-scan-sec']
         ? parseInt(values['periodic-scan-sec'], 10)
         : undefined,
@@ -194,7 +201,8 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
     if (parsed.command === 'daemon') {
       return await runDaemonCommand({
         configPath: parsed.options.config,
-        write: parsed.options.write,
+        write: parsed.options.autoArm ? 'auto-arm' : parsed.options.write,
+        autoArm: parsed.options.autoArm,
         periodicScanSec: parsed.options.periodicScanSec,
         concurrency: parsed.options.concurrency,
         debounceMs: parsed.options.debounceMs,

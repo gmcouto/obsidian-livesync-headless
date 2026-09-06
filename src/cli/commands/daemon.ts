@@ -12,9 +12,12 @@ import { ContinuousEngine } from '../../daemon/continuous-engine.js';
 import { ShutdownHandler } from '../../daemon/shutdown-handler.js';
 import { OutcomeCategory, EXIT_CODES } from '../../diagnostics/outcomes.js';
 
+import { AutoArmCoordinator } from '../../domain/auto-arm.js';
+
 export interface DaemonCommandOptions {
   configPath?: string;
-  write?: boolean;
+  write?: boolean | 'auto-arm';
+  autoArm?: boolean;
   periodicScanSec?: number;
   concurrency?: number;
   debounceMs?: number;
@@ -28,11 +31,21 @@ export interface DaemonCommandOptions {
   onEngineReady?: (engine: ContinuousEngine, shutdownHandler: ShutdownHandler) => void;
 }
 
-export function emitDaemonBanner(stdout: (msg: string) => void, writeMode: boolean): void {
+export function emitDaemonBanner(
+  stdout: (msg: string) => void,
+  writeMode: boolean | 'auto-arm',
+  autoArm?: boolean
+): void {
+  const modeLabel =
+    autoArm || writeMode === 'auto-arm'
+      ? 'Bidirectional (Auto-Arm Mode)'
+      : writeMode
+      ? 'Bidirectional (Write Armed)'
+      : 'Read-Only (Pull Monitoring)';
   stdout(
     `\n================================================================================\n` +
       `🔄  Obsidian LiveSync Continuous Convergence Daemon\n` +
-      `   Mode: ${writeMode ? 'Bidirectional (Write Armed)' : 'Read-Only (Pull Monitoring)'}\n` +
+      `   Mode: ${modeLabel}\n` +
       `   Press Ctrl+C (SIGINT) to initiate graceful shutdown.\n` +
       `================================================================================\n\n`
   );
@@ -57,12 +70,18 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
     return EXIT_CODES.CONFIG_ERROR;
   }
 
-  // Merge write mode: CLI flag takes precedence; fall back to LIVESYNC_WRITE env var via config.
-  // This allows LIVESYNC_WRITE=true in Docker env files to enable bidirectional sync without
-  // requiring the --write CLI flag to be passed explicitly.
-  const effectiveWrite = options.write || (config.cli?.write ?? false);
+  const isAutoArm =
+    Boolean(options.autoArm) ||
+    options.write === 'auto-arm' ||
+    Boolean(config.cli?.autoArm) ||
+    config.cli?.write === 'auto-arm';
 
-  emitDaemonBanner(writeStdout, effectiveWrite);
+  // Merge write mode: CLI flag takes precedence; fall back to LIVESYNC_WRITE env var via config.
+  // This allows LIVESYNC_WRITE=true / LIVESYNC_WRITE=auto-arm in Docker env files to enable
+  // bidirectional sync without requiring the --write CLI flag to be passed explicitly.
+  const effectiveWrite = isAutoArm ? true : Boolean(options.write || (config.cli?.write ?? false));
+
+  emitDaemonBanner(writeStdout, effectiveWrite, isAutoArm);
 
   const rawUrl = new URL(config.remote.url);
   const allowedBaseUrl = new URL(`${rawUrl.protocol}//${rawUrl.host}`);
@@ -204,6 +223,22 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
     typeof negotiatedSettings.customChunkSize === 'number'
       ? (negotiatedSettings.customChunkSize as number)
       : undefined;
+
+  // If in auto-arm mode, evaluate triggers, reset/pull if needed, validate, and auto-arm
+  if (isAutoArm) {
+    const autoArmCoordinator = new AutoArmCoordinator();
+    const autoArmRes = await autoArmCoordinator.runWorkflow({
+      config,
+      guardedFetch,
+      logger: (msg) => writeStdout(`${msg}\n`),
+      threshold: 10,
+    });
+
+    if (!autoArmRes.success) {
+      writeStderr(`ERROR: Auto-arm workflow failed: ${autoArmRes.error}\n`);
+      return EXIT_CODES.CONFIG_ERROR;
+    }
+  }
 
   // Check write grant if write mode is requested (DAEM-01)
   let capability: WriteCapability | null = null;

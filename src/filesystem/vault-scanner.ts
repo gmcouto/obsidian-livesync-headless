@@ -45,7 +45,7 @@ export class VaultScanner {
         } else if (entry.isFile()) {
           const stat = await fs.stat(fullPath);
           const buffer = await fs.readFile(fullPath);
-          const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+          const hash = crypto.createHash('sha256').update(new Uint8Array(buffer)).digest('hex');
 
           results.set(relPath, {
             path: relPath,
