@@ -252,4 +252,63 @@ describe('Commonlib decode characterization (0.1.21)', () => {
       expect(new TextDecoder().decode(decoded.bytes)).toBe(body);
     }
   });
+
+  it('decrypts V2 HKDF ciphertext with a base64-encoded PBKDF2 salt', async () => {
+    const original = 'secret-data-with-base64-salt';
+    const saltB64 = Buffer.from(saltBytes).toString('base64');
+    const encryptedData = await encryptHkdf(original, passphrase, saltBytes);
+
+    const result = await decryptIncomingDocument(
+      {
+        _id: 'Secure.md',
+        _rev: '1-v2',
+        type: 'plain',
+        path: 'Secure.md',
+        data: encryptedData,
+        e_: true,
+      },
+      {
+        encryptionPassphrase: passphrase,
+        algorithm: E2EEAlgorithms.V2,
+        pbkdf2salt: saltB64,
+      }
+    );
+
+    expect(result.verified).toBe(true);
+    if (result.verified) {
+      expect(result.document.data).toBe(original);
+    }
+  });
+
+  it('decodes a newnote binary document with base64 encoded chunk data', async () => {
+    const rawBinary = new Uint8Array([118, 105, 101, 119, 115, 58, 10, 32, 32, 45]);
+    const base64ChunkData = Buffer.from(rawBinary).toString('base64');
+
+    const decoded = await decodeNoteLeaf(
+      {
+        _id: 'document.base',
+        _rev: '1-bin',
+        type: 'newnote',
+        path: 'document.base',
+        children: ['h:bin-chunk-1'],
+        size: rawBinary.byteLength,
+      },
+      {
+        handleFilenameCaseSensitive: true,
+        fetchChunk: async (id) => {
+          if (id === 'h:bin-chunk-1') {
+            return { _id: id, _rev: '1-b', type: 'leaf', data: base64ChunkData };
+          }
+          return null;
+        },
+      }
+    );
+
+    expect(decoded.ok).toBe(true);
+    if (decoded.ok) {
+      expect(decoded.type).toBe('newnote');
+      expect(decoded.bytes.byteLength).toBe(rawBinary.byteLength);
+      expect(Array.from(decoded.bytes)).toEqual(Array.from(rawBinary));
+    }
+  });
 });

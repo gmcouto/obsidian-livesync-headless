@@ -223,4 +223,36 @@ describe('LiveSync Compatibility Negotiation', () => {
     expect(rejectedResult.unsupportedCapabilities).toContain('read_only_admission');
     expect(rejectedResult.unsupportedCapabilities).toContain('write_sync');
   });
+
+  it('adopts standard optional plugin tweaks without unknown-setting blockers', () => {
+    const probe: RemoteProbeResult = {
+      ...baseProbeResult,
+      milestoneDoc: {
+        ...baseProbeResult.milestoneDoc!,
+        tweak_values: {
+          PREFERRED: {
+            hashAlg: 'xxhash64',
+            customChunkSize: 60,
+            batch_size: 25,
+            batches_limit: 25,
+            useTimeouts: false,
+            readChunksOnline: true,
+            useIgnoreFiles: false,
+            ignoreFiles: '.gitignore',
+            E2EEAlgorithm: 'v2',
+            minimumChunkSize: 20,
+            enableChunkSplitterV2: false,
+            usePluginSyncV2: true,
+          },
+        },
+      },
+    };
+
+    const result = negotiateCompatibility(probe, localConfig);
+    expect(result.admitted).toBe(true);
+    expect(result.blockers).toHaveLength(0);
+    expect(result.adoptedTweaks.batch_size).toBe(25);
+    expect(result.adoptedTweaks.E2EEAlgorithm).toBe('v2');
+    expect(result.adoptedTweaks.minimumChunkSize).toBe(20);
+  });
 });
