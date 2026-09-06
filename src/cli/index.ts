@@ -6,12 +6,17 @@ import { runInspectCommand } from './commands/inspect.js';
 import { runPullCommand } from './commands/pull.js';
 import { runArmCommand } from './commands/arm.js';
 import { runSyncCommand } from './commands/sync.js';
+import { runDaemonCommand } from './commands/daemon.js';
 
 export interface CliOptions {
   config?: string;
   json: boolean;
   dryRun: boolean;
   revoke: boolean;
+  write: boolean;
+  periodicScanSec?: number;
+  concurrency?: number;
+  debounceMs?: number;
   help: boolean;
   version: boolean;
 }
@@ -28,9 +33,14 @@ Commands:
   pull                        Materialize verified remote LiveSync files into a vault
   arm                         Issue or revoke durable 5-tuple write grant for vault & remote
   sync                        Bidirectional synchronization with chunk-first push and guard
+  daemon                      Continuous unattended convergence daemon
 
 Options:
   -c, --config <path>         Path to YAML configuration file
+      --write                 Enable bidirectional synchronization in daemon mode (requires active write grant)
+      --periodic-scan-sec <n> Periodic full reconciliation interval in seconds (default: 300)
+      --concurrency <n>       Max concurrent file workers (default: 4)
+      --debounce-ms <n>       Local filesystem watcher debounce window in ms (default: 300)
       --json                  Output structured JSON Lines report
       --dry-run               Preview synchronization actions without mutation
       --revoke                Revoke active write grant for the vault (arm command)
@@ -47,6 +57,19 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): { command?
       config: {
         type: 'string',
         short: 'c',
+      },
+      write: {
+        type: 'boolean',
+        default: false,
+      },
+      'periodic-scan-sec': {
+        type: 'string',
+      },
+      concurrency: {
+        type: 'string',
+      },
+      'debounce-ms': {
+        type: 'string',
       },
       json: {
         type: 'boolean',
@@ -78,6 +101,10 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): { command?
     command: positionals[0],
     options: {
       config: values.config,
+      write: values.write ?? false,
+      periodicScanSec: values['periodic-scan-sec'] ? parseInt(values['periodic-scan-sec'], 10) : undefined,
+      concurrency: values.concurrency ? parseInt(values.concurrency, 10) : undefined,
+      debounceMs: values['debounce-ms'] ? parseInt(values['debounce-ms'], 10) : undefined,
       json: values.json ?? false,
       dryRun: values['dry-run'] ?? false,
       revoke: values.revoke ?? false,
@@ -106,6 +133,22 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
       hasConfig: Boolean(parsed.options.config),
       json: parsed.options.json,
     });
+
+    if (parsed.command === 'daemon') {
+      if (!parsed.options.config) {
+        logger.error('Missing required configuration file (--config <path>)');
+        return EXIT_CODES.CONFIG_ERROR;
+      }
+
+      return await runDaemonCommand({
+        configPath: parsed.options.config,
+        write: parsed.options.write,
+        periodicScanSec: parsed.options.periodicScanSec,
+        concurrency: parsed.options.concurrency,
+        debounceMs: parsed.options.debounceMs,
+        json: parsed.options.json,
+      });
+    }
 
     if (parsed.command === 'arm') {
       if (!parsed.options.config) {
@@ -176,4 +219,3 @@ if (process.argv[1] && (process.argv[1].endsWith('/cli/index.js') || process.arg
     process.exit(exitCode);
   });
 }
-
