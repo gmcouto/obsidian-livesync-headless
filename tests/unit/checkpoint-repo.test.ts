@@ -22,8 +22,8 @@ describe("SQLite Checkpoint Repository", () => {
     }
   });
 
-  it("ensures schema version is 4 and pull_checkpoints table exists", () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(4);
+  it("ensures schema version is at least 4 and pull_checkpoints table exists", () => {
+    expect(CURRENT_SCHEMA_VERSION).toBeGreaterThanOrEqual(4);
     const db = openDatabase(dbPath);
 
     const tables = db

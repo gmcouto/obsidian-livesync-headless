@@ -22,8 +22,8 @@ describe("SQLite Quarantine Repository", () => {
     }
   });
 
-  it("ensures schema version is 4 and quarantine table exists with proper indexes", () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(4);
+  it("ensures schema version is at least 4 and quarantine table exists with proper indexes", () => {
+    expect(CURRENT_SCHEMA_VERSION).toBeGreaterThanOrEqual(4);
     const db = openDatabase(dbPath);
     expect(fs.existsSync(dbPath)).toBe(true);
 

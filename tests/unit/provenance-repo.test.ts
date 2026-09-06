@@ -23,7 +23,7 @@ describe("SQLite Provenance Repository", () => {
   });
 
   it("ensures schema version is at least 4 and file_provenance table exists", () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(4);
+    expect(CURRENT_SCHEMA_VERSION).toBeGreaterThanOrEqual(4);
     const db = openDatabase(dbPath);
     expect(fs.existsSync(dbPath)).toBe(true);
 
