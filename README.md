@@ -43,7 +43,6 @@ docker run -d \
   -e LIVESYNC_COUCHDB_USER="sync_user" \
   -e LIVESYNC_COUCHDB_PASSWORD="secure_couchdb_password" \
   -e LIVESYNC_ENCRYPTION_PASSPHRASE="my_e2ee_passphrase" \
-  -e LIVESYNC_STATE_PATH="/data/state.db" \
   ghcr.io/gmcouto/obsidian-livesync-headless:latest
 # Note: /vault mounts the Obsidian vault; /data is optional if specifying a custom LIVESYNC_STATE_PATH
 ```
@@ -69,7 +68,6 @@ services:
       - LIVESYNC_COUCHDB_USER=sync_user
       - LIVESYNC_COUCHDB_PASSWORD=secure_couchdb_password
       - LIVESYNC_ENCRYPTION_PASSPHRASE=my_e2ee_passphrase
-      - LIVESYNC_STATE_PATH=/data/state.db   # Or omit to use the app default (~/.config/obsidian-livesync-headless/state.db)
       - LIVESYNC_WRITE=false                  # Set to true once write access is armed
 
 volumes:
