@@ -142,5 +142,45 @@ state:
 
     expect(exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(stdoutLines.some((msg) => msg.includes('Read-Only (Pull Monitoring)'))).toBe(true);
+    expect(stdoutLines.some((msg) => msg.includes('read-only (pull-only) mode'))).toBe(true);
+    expect(stdoutLines.some((msg) => msg.includes('LIVESYNC_WRITE=true'))).toBe(true);
+  });
+
+  it('rejects LIVESYNC_WRITE=true env var with error when no active write grant exists', async () => {
+    const stdoutLines: string[] = [];
+    const stderrLines: string[] = [];
+
+    // Pass write via config (simulating LIVESYNC_WRITE=true in env) but NOT via CLI options.write
+    // The daemon should still detect write intent from config.cli.write and fail with a clear error.
+    const envConfigPath = configPath.replace('config.yaml', 'config-write.yaml');
+    await fs.writeFile(
+      envConfigPath,
+      `
+remote:
+  url: "http://127.0.0.1:5984"
+  database: "testdb"
+vault:
+  path: "${vaultDir}"
+state:
+  path: "${stateDbPath}"
+cli:
+  write: true
+`
+    );
+
+    const exitCode = await runDaemonCommand({
+      configPath: envConfigPath,
+      write: false, // CLI flag NOT set — should still pick up write:true from config
+      stdout: (msg) => stdoutLines.push(msg),
+      stderr: (msg) => stderrLines.push(msg),
+      registerSignalHandlers: false,
+    });
+
+    expect(exitCode).toBe(EXIT_CODES.CONFIG_ERROR);
+    expect(stderrLines.some((msg) => msg.includes('No active write grant found'))).toBe(true);
+    expect(stderrLines.some((msg) => msg.includes('FIX'))).toBe(true);
+    expect(stderrLines.some((msg) => msg.includes('arm'))).toBe(true);
+    // Banner should show Bidirectional mode because write was requested via config
+    expect(stdoutLines.some((msg) => msg.includes('Bidirectional (Write Armed)'))).toBe(true);
   });
 });

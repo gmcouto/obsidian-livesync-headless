@@ -43,8 +43,6 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
   const writeStdout = options.stdout ?? ((msg: string) => process.stdout.write(msg));
   const writeStderr = options.stderr ?? ((msg: string) => process.stderr.write(msg));
 
-  emitDaemonBanner(writeStdout, Boolean(options.write));
-
   let config;
   try {
     config = await loadConfig(options.configPath, process.env, redactor);
@@ -58,6 +56,13 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
     );
     return EXIT_CODES.CONFIG_ERROR;
   }
+
+  // Merge write mode: CLI flag takes precedence; fall back to LIVESYNC_WRITE env var via config.
+  // This allows LIVESYNC_WRITE=true in Docker env files to enable bidirectional sync without
+  // requiring the --write CLI flag to be passed explicitly.
+  const effectiveWrite = options.write || (config.cli?.write ?? false);
+
+  emitDaemonBanner(writeStdout, effectiveWrite);
 
   const rawUrl = new URL(config.remote.url);
   const allowedBaseUrl = new URL(`${rawUrl.protocol}//${rawUrl.host}`);
@@ -202,7 +207,7 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
 
   // Check write grant if write mode is requested (DAEM-01)
   let capability: WriteCapability | null = null;
-  if (options.write) {
+  if (effectiveWrite) {
     const db = openDatabase(statePath);
     try {
       const grantRepo = new WriteGrantRepo(db);
@@ -210,8 +215,15 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
 
       if (!activeGrant) {
         writeStderr(
-          `ERROR: No active write grant found for vault '${vaultRoot}' and remote '${fingerprint}'.\n` +
-            `Run 'obsidian-livesync-headless arm -c <config>' first to arm write access (DAEM-01).\n`
+          `ERROR: No active write grant found for vault '${vaultRoot}' and remote '${fingerprint}'.\n\n` +
+            `  WHY: The daemon requires a one-time arm step to generate a durable write grant\n` +
+            `       before it can push changes to the remote database (LIVESYNC_WRITE=true / --write).\n` +
+            `       This prevents accidental writes to an existing database on first contact.\n\n` +
+            `  FIX: Run the arm command once, then restart the daemon:\n\n` +
+            `         docker exec -it obsidian-livesync obsidian-livesync-headless arm\n\n` +
+            `       Or if using a config file:\n\n` +
+            `         obsidian-livesync-headless arm -c <config>\n\n` +
+            `       The daemon will then start in bidirectional (write-armed) mode.\n`
         );
         return EXIT_CODES.CONFIG_ERROR;
       }
@@ -226,6 +238,17 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
     } finally {
       db.close();
     }
+  } else {
+    // Explain why read-only mode is active so operators are not confused.
+    writeStdout(
+      `[info] Running in read-only (pull-only) mode.\n` +
+        `       Remote changes will be pulled to vault; local changes will NOT be pushed.\n` +
+        `\n` +
+        `       To enable bidirectional sync, set LIVESYNC_WRITE=true (or pass --write)\n` +
+        `       and run the arm command once:\n` +
+        `\n` +
+        `         docker exec -it obsidian-livesync obsidian-livesync-headless arm\n\n`
+    );
   }
 
   const engine = new ContinuousEngine({
@@ -242,11 +265,11 @@ export async function runDaemonCommand(options: DaemonCommandOptions): Promise<n
     handleFilenameCaseSensitive,
     customChunkSize,
     minimumChunkSize: 20,
-    periodicScanIntervalMs: (options.periodicScanSec ?? 300) * 1000,
-    debounceMs: options.debounceMs ?? 300,
-    workerConcurrency: options.concurrency ?? 4,
+    periodicScanIntervalMs: (options.periodicScanSec ?? (config.cli?.periodicScanSec ?? 300)) * 1000,
+    debounceMs: options.debounceMs ?? (config.cli?.debounceMs ?? 300),
+    workerConcurrency: options.concurrency ?? (config.cli?.concurrency ?? 4),
     capability: capability ?? undefined,
-    readOnly: !options.write,
+    readOnly: !effectiveWrite,
     fetch: options.fetch,
   });
 

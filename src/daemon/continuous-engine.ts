@@ -141,7 +141,10 @@ export class ContinuousEngine extends EventEmitter {
 
     // 3. Transition to live state
     if (this.options.readOnly || !this.activeCapability) {
-      this.stateMachine.transitionTo('DEGRADED_READ_ONLY', 'Operating in read-only mode');
+      const reason = this.options.readOnly
+        ? 'read-only mode configured (LIVESYNC_WRITE not set or write grant not armed)'
+        : 'no write capability available (capability was not provided to engine)';
+      this.stateMachine.transitionTo('DEGRADED_READ_ONLY', reason);
     } else {
       this.stateMachine.transitionTo('HEALTHY_BIDIRECTIONAL');
     }
