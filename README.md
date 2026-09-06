@@ -43,8 +43,9 @@ docker run -d \
   -e LIVESYNC_COUCHDB_USER="sync_user" \
   -e LIVESYNC_COUCHDB_PASSWORD="secure_couchdb_password" \
   -e LIVESYNC_ENCRYPTION_PASSPHRASE="my_e2ee_passphrase" \
+  -e LIVESYNC_MODE="auto-arm" \
   ghcr.io/gmcouto/obsidian-livesync-headless:latest
-# Note: /vault mounts the Obsidian vault; /data is optional if specifying a custom LIVESYNC_STATE_PATH
+# Note: /vault mounts the Obsidian vault; /data stores the SQLite state database
 ```
 
 > **Rootless & Non-Root Execution:**
@@ -68,14 +69,16 @@ services:
       - LIVESYNC_COUCHDB_USER=sync_user
       - LIVESYNC_COUCHDB_PASSWORD=secure_couchdb_password
       - LIVESYNC_ENCRYPTION_PASSPHRASE=my_e2ee_passphrase
-      - LIVESYNC_WRITE=false                  # Set to true once write access is armed
+      - LIVESYNC_MODE=auto-arm                # Automatic setup & bidirectional sync
 
 volumes:
   livesync-state:                             # Managed by Docker; survives container recreation
 ```
 
-> **Arming Write Access in Docker:**
-> To enable bidirectional write synchronization (`LIVESYNC_WRITE=true`), you must first arm write access for the container volume:
+> **Auto-Arm Mode (`LIVESYNC_MODE=auto-arm`):**
+> When starting fresh (empty vault or state DB) or if local changes exceed 10 files since last sync, auto-arm mode safely pulls remote documents, verifies local file integrity, automatically issues a durable 5-tuple write grant, and transitions directly into continuous bidirectional write mode.
+>
+> If you prefer manual authorization, set `LIVESYNC_MODE=write` (or omit to run in `read-only` mode) and issue grants manually via:
 > ```bash
 > docker exec -it obsidian-livesync /usr/local/bin/obsidian-livesync-headless arm
 > ```
@@ -124,6 +127,7 @@ When environment variables are provided, the `-c, --config` parameter is optiona
 
 | Environment Variable | Config Target | Type / Description | Default / Example |
 |---|---|---|---|
+| `LIVESYNC_MODE` | `cli.write` | Daemon operation mode: `auto-arm`, `write`, or `read-only` | `read-only` (use `auto-arm` for Docker) |
 | `LIVESYNC_COUCHDB_URL` | `remote.url` | Valid HTTP/S CouchDB endpoint URL (credentials forbidden in URL) | `https://couchdb.example.com` |
 | `LIVESYNC_COUCHDB_DATABASE` | `remote.database` | CouchDB database name | `obsidian-vault` |
 | `LIVESYNC_COUCHDB_USER` | `remote.username` | CouchDB authentication username | `sync_user` |
@@ -133,7 +137,6 @@ When environment variables are provided, the `-c, --config` parameter is optiona
 | `LIVESYNC_STATE_PATH` | `state.path` | Local SQLite state database path | `~/.config/obsidian-livesync-headless/state.db` |
 | `LIVESYNC_ENCRYPTION_PASSPHRASE` | `encryption.passphrase` | E2EE encryption passphrase (auto-redacted) | `my-e2ee-pass` |
 | `LIVESYNC_ENCRYPTION_ENABLED` | `encryption.enabled` | Enable/disable E2EE (defaults to `true` if passphrase set) | `false` |
-| `LIVESYNC_WRITE` | `cli.write` | Enable bidirectional synchronization in daemon mode | `false` |
 | `LIVESYNC_PERIODIC_SCAN_SEC` | `cli.periodicScanSec` | Interval in seconds for full reconciliation scan | `300` |
 | `LIVESYNC_CONCURRENCY` | `cli.concurrency` | Maximum concurrent file workers | `4` |
 | `LIVESYNC_DEBOUNCE_MS` | `cli.debounceMs` | Watcher debounce window in milliseconds | `300` |
@@ -250,15 +253,18 @@ obsidian-livesync-headless sync --config livesync.yaml
 Runs continuously in the background, listening to CouchDB `_changes` feeds and local filesystem events (via Chokidar).
 
 ```bash
+# Run with automatic setup, sync validation, and continuous write mode (recommended)
+obsidian-livesync-headless daemon --config livesync.yaml --auto-arm
+
 # Run continuous pull-only daemon (safe default)
 obsidian-livesync-headless daemon --config livesync.yaml
 
-# Run continuous bidirectional sync daemon (requires active write grant)
+# Run continuous bidirectional sync daemon (requires existing active write grant)
 obsidian-livesync-headless daemon --config livesync.yaml --write
 
 # Custom tuning options
 obsidian-livesync-headless daemon --config livesync.yaml \
-  --write \
+  --auto-arm \
   --debounce-ms 500 \
   --periodic-scan-sec 600 \
   --concurrency 8
@@ -299,9 +305,10 @@ obsidian-livesync-headless version --json
 | Option | Short | Description |
 |---|---|---|
 | `-c, --config <path>` | `-c` | Path to YAML configuration file (required for sync commands). |
-| `--json` | | Output structured JSON Lines events instead of human formatting. |
-| `--dry-run` | | Preview synchronization operations without modifying files or remote. |
+| `--auto-arm` | | Automatically clean, pull, validate, and issue write grant before running daemon. |
 | `--write` | | Enable bidirectional write mode in `daemon` (requires active write grant). |
+| `--dry-run` | | Preview synchronization operations without modifying files or remote. |
+| `--json` | | Output structured JSON Lines events instead of human formatting. |
 | `--revoke` | | Revoke active write grant when running `arm`. |
 | `--debounce-ms <n>` | | Filesystem watcher debounce window in milliseconds (default: `300`). |
 | `--periodic-scan-sec <n>` | | Periodic full reconciliation scan interval in seconds (default: `300`). |
