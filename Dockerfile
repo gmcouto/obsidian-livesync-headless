@@ -29,14 +29,23 @@ RUN apt-get update && \
 
 # Copy standalone binary from builder stage
 COPY --from=builder /app/dist/obsidian-livesync-headless /usr/local/bin/obsidian-livesync-headless
-RUN chmod +x /usr/local/bin/obsidian-livesync-headless
+RUN chmod 755 /usr/local/bin/obsidian-livesync-headless
 
-# Create default mount directories
-RUN mkdir -p /vault /data
+# Create dedicated non-root user and group (UID/GID 1000)
+RUN groupadd -g 1000 livesync && \
+    useradd -u 1000 -g livesync -m -d /home/livesync -s /bin/sh livesync
+
+# Create default mount directories and set permissive permissions for rootless & custom UID execution
+RUN mkdir -p /vault /data /home/livesync && \
+    chown -R livesync:livesync /vault /data /home/livesync && \
+    chmod -R 777 /vault /data /home/livesync
 
 # Default environment configuration
-ENV LIVESYNC_VAULT_PATH=/vault \
+ENV HOME=/home/livesync \
+    LIVESYNC_VAULT_PATH=/vault \
     LIVESYNC_DATABASE_PATH=/data/.state.db
+
+USER livesync
 
 VOLUME ["/vault", "/data"]
 

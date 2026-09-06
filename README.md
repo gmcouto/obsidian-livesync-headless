@@ -35,6 +35,7 @@ Official minimal multi-arch (`linux/amd64`, `linux/arm64`) container images are 
 docker run -d \
   --name obsidian-livesync \
   --restart unless-stopped \
+  --user 1000:1000 \
   -v /path/to/my/vault:/vault \
   -v /path/to/livesync-data:/data \
   -e LIVESYNC_COUCHDB_URL="https://couchdb.example.com" \
@@ -44,6 +45,9 @@ docker run -d \
   -e LIVESYNC_ENCRYPTION_PASSPHRASE="my_e2ee_passphrase" \
   ghcr.io/vrtmrz/obsidian-livesync-headless:latest
 ```
+
+> **Rootless & Non-Root Execution:**
+> The Docker image runs as an unprivileged user (`livesync`, UID/GID `1000:1000`) by default and fully supports rootless Docker, Podman, and custom user IDs via `--user <uid>:<gid>` (e.g. `--user $(id -u):$(id -g)`). Ensure mounted host directories `/path/to/my/vault` and `/path/to/livesync-data` are readable and writable by your host user.
 
 #### Docker Compose Example (`docker-compose.yml`)
 
@@ -55,6 +59,7 @@ services:
     image: ghcr.io/vrtmrz/obsidian-livesync-headless:latest
     container_name: obsidian-livesync
     restart: unless-stopped
+    user: "1000:1000"                         # Or match your host UID:GID (e.g., "${UID}:${GID}")
     volumes:
       - /path/to/my/vault:/vault
       - /path/to/livesync-data:/data

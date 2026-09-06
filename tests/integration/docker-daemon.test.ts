@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import { VERSION } from '../../src/cli/index.js';
@@ -7,13 +7,20 @@ const execFileAsync = promisify(execFile);
 const IMAGE_TAG = 'obsidian-livesync-headless:test';
 
 describe('Docker Container Integration Tests (DOCKER-01, DOCKER-02, DOCKER-03)', () => {
-  it('verifies Docker image metadata, entrypoint, default CMD, volumes, and env defaults', async () => {
+  beforeAll(() => {
+    execFileSync('docker', ['build', '-t', IMAGE_TAG, '.'], { stdio: 'pipe' });
+  });
+
+  it('verifies Docker image metadata, user, entrypoint, default CMD, volumes, and env defaults', async () => {
     const { stdout } = await execFileAsync('docker', ['inspect', IMAGE_TAG]);
     const inspectResult = JSON.parse(stdout);
     expect(Array.isArray(inspectResult)).toBe(true);
     expect(inspectResult.length).toBeGreaterThan(0);
 
     const config = inspectResult[0].Config;
+
+    // Non-root default user
+    expect(config.User).toBe('livesync');
 
     // DOCKER-03: Entrypoint and default CMD
     expect(config.Entrypoint).toEqual(['/usr/local/bin/obsidian-livesync-headless']);
@@ -25,8 +32,39 @@ describe('Docker Container Integration Tests (DOCKER-01, DOCKER-02, DOCKER-03)',
 
     // DOCKER-02: Environment defaults
     const envVars = config.Env as string[];
+    expect(envVars).toContain('HOME=/home/livesync');
     expect(envVars).toContain('LIVESYNC_VAULT_PATH=/vault');
     expect(envVars).toContain('LIVESYNC_DATABASE_PATH=/data/.state.db');
+  });
+
+  it('runs as non-root user livesync by default and supports arbitrary UID/GID rootless execution', async () => {
+    // Verify default user execution
+    const { stdout: defaultUserOut } = await execFileAsync('docker', [
+      'run',
+      '--rm',
+      '--entrypoint',
+      '/bin/sh',
+      IMAGE_TAG,
+      '-c',
+      'id -u && id -un',
+    ]);
+    expect(defaultUserOut.trim().split('\n')).toEqual(['1000', 'livesync']);
+
+    // Verify arbitrary UID/GID execution (rootless / custom user setup)
+    const { stdout: customUserOut } = await execFileAsync('docker', [
+      'run',
+      '--rm',
+      '--user',
+      '1001:1001',
+      '--entrypoint',
+      '/bin/sh',
+      IMAGE_TAG,
+      '-c',
+      'id -u; touch /vault/rootless.test /data/rootless.db && ls -la /vault/rootless.test /data/rootless.db',
+    ]);
+    expect(customUserOut).toContain('1001');
+    expect(customUserOut).toContain('/vault/rootless.test');
+    expect(customUserOut).toContain('/data/rootless.db');
   });
 
   it('runs --version inside container and outputs build and compatibility identity', async () => {
