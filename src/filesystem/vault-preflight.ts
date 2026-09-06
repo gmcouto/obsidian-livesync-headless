@@ -1,5 +1,6 @@
 import { lstat, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { cleanupOrphanStagingFiles } from './orphan-cleanup.js';
 
 export interface VaultPreflightBlock {
   readonly path: string;
@@ -85,6 +86,9 @@ export async function preflightVault(
   dedicated: boolean,
   getProvenancePaths: () => Iterable<string> | Promise<Iterable<string>>
 ): Promise<VaultPreflightResult> {
+  // Clean stale atomic staging files (.ols-tmp-*) left by crashed/interrupted operations
+  await cleanupOrphanStagingFiles(vaultPath);
+
   const collected = await collectVaultEntries(vaultPath);
   if (!Array.isArray(collected)) {
     return collected;

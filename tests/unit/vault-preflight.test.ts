@@ -55,4 +55,16 @@ describe('vault preflight', () => {
     expect(result.ok).toBe(false);
     expect(result.code.toLowerCase()).toMatch(/symlink|unsafe/);
   });
+
+  it('cleans residual .ols-tmp-* staging files before inspecting unproven files in dedicated vault', async () => {
+    await fs.writeFile(path.join(vaultPath, '.ols-tmp-interrupted'), 'garbage');
+    await fs.writeFile(path.join(vaultPath, 'proven.md'), 'good');
+
+    const result = await preflightVault(vaultPath, true, () => ['proven.md']);
+    expect(result.ok).toBe(true);
+    expect(result.blocks).toEqual([]);
+
+    // Staging file should have been cleaned
+    await expect(fs.access(path.join(vaultPath, '.ols-tmp-interrupted'))).rejects.toThrow();
+  });
 });
