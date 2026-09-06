@@ -61,7 +61,7 @@ services:
     user: "1000:1000"                         # Or match your host UID:GID (e.g., "${UID}:${GID}")
     volumes:
       - /path/to/my/vault:/vault              # Obsidian vault directory (bind mount)
-      - livesync-state:/data                  # Named volume for sync state database
+      - livesync-state:/data                  # Sync state database will be placed here
     environment:
       - LIVESYNC_COUCHDB_URL=https://couchdb.example.com
       - LIVESYNC_COUCHDB_DATABASE=obsidian-vault
