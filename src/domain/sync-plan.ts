@@ -234,7 +234,11 @@ export function buildSyncPlan(
 
   // 2. Collect all distinct non-consumed paths
   const allPaths = new Set<string>();
-  for (const p of remoteLeaves.keys()) allPaths.add(p);
+  for (const p of remoteLeaves.keys()) {
+    if (!renameResult.consumedDeletedPaths.has(p)) {
+      allPaths.add(p);
+    }
+  }
   for (const p of localFiles.keys()) {
     if (!renameResult.consumedCreatedPaths.has(p)) {
       allPaths.add(p);

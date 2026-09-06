@@ -484,4 +484,179 @@ encryption:
       expect(fs.readFileSync(path.join(vaultDir, 'SafeDoc.md'), 'utf8')).toBe(localOriginal);
     });
   });
+
+  describe('Mixed-Client Interoperability: Concurrency, Conflicts & Continuous Convergence', () => {
+    it('handles simultaneous edits producing conflict leaves without silent winner loss (COMP-07, DIST-04)', async () => {
+      // Part 1: Both clients modify local/remote from a common ancestor
+      const dbName1 = 'concurrency-divergent-conflict';
+      await harness.createDatabase(dbName1);
+      await harness.seedLiveSyncData(dbName1, { version: 12, locked: false });
+
+      const initialContent = '# Baseline Document\nOriginal synchronized content.';
+      const notePath = 'SharedConflict.md';
+      await harness.writeUpstreamPlainNote(dbName1, notePath, initialContent);
+
+      const configPath1 = writeConfigFile(dbName1);
+      await runArmCommand({ configPath: configPath1, json: true });
+      await runSyncCommand({ configPath: configPath1, dryRun: false, json: true });
+
+      expect(fs.readFileSync(path.join(vaultDir, notePath), 'utf8')).toBe(initialContent);
+
+      // Upstream client modifies note in CouchDB
+      const upstreamMod = '# Upstream Modification\nWritten by official client.';
+      await harness.writeUpstreamPlainNote(dbName1, notePath, upstreamMod);
+
+      // Local user modifies note in local vault independently
+      const localMod = '# Local Modification\nWritten by headless vault user.';
+      fs.writeFileSync(path.join(vaultDir, notePath), localMod, 'utf8');
+
+      // Run sync -> must detect conflict and halt fail-closed
+      let output1 = '';
+      const syncExit = await runSyncCommand({
+        configPath: configPath1,
+        dryRun: false,
+        json: true,
+        stdout: (msg) => {
+          output1 += msg;
+        },
+      });
+
+      expect(syncExit).toBe(EXIT_CODES.CONFLICT);
+
+      const jsonLine1 = output1.trim().split('\n').filter((l) => l.startsWith('{')).pop();
+      expect(jsonLine1).toBeDefined();
+      const report1 = JSON.parse(jsonLine1!);
+      expect(report1.outcome).toBe(OutcomeCategory.CONFLICT);
+      expect(report1.conflicts.length).toBeGreaterThan(0);
+      expect(report1.appliedActions).toBe(0);
+
+      // Verify local file was NOT overwritten with upstream content
+      expect(fs.readFileSync(path.join(vaultDir, notePath), 'utf8')).toBe(localMod);
+
+      // Part 2: CouchDB database contains multiple open conflicting leaf revisions
+      const dbName2 = 'concurrency-couchdb-open-leaves';
+      await harness.createDatabase(dbName2);
+      await harness.seedLiveSyncData(dbName2, { version: 12, locked: false });
+      await harness.seedConflictingLegacyNotes(
+        dbName2,
+        'LeafConflict.md',
+        '# CouchDB Winner Leaf',
+        '# CouchDB Second Open Leaf'
+      );
+
+      const configPath2 = writeConfigFile(dbName2);
+      await runArmCommand({ configPath: configPath2, json: true });
+
+      let output2 = '';
+      const pullExit = await runPullCommand({
+        configPath: configPath2,
+        dryRun: false,
+        json: true,
+        stdout: (msg) => {
+          output2 += msg;
+        },
+      });
+
+      expect(pullExit).toBe(EXIT_CODES.CONFLICT);
+      // Destination file was safely skipped
+      expect(fs.existsSync(path.join(vaultDir, 'LeafConflict.md'))).toBe(false);
+    });
+
+    it('handles case-only and cross-path renames between upstream and headless without corruption', async () => {
+      const dbName = 'concurrency-renames';
+      await harness.createDatabase(dbName);
+      await harness.seedLiveSyncData(dbName, { version: 12, locked: false });
+
+      const configPath = writeConfigFile(dbName);
+      await runArmCommand({ configPath, json: true });
+
+      // 1. Cross-path rename: Upstream creates OldDir/MoveMe.md -> Headless pulls it
+      const originalContent = '# Content to be moved\nPreserved across cross-path rename.';
+      await harness.writeUpstreamPlainNote(dbName, 'OldDir/MoveMe.md', originalContent);
+
+      const syncExit1 = await runSyncCommand({ configPath, dryRun: false, json: true });
+      expect(syncExit1).toBe(EXIT_CODES.SUCCESS);
+      expect(fs.readFileSync(path.join(vaultDir, 'OldDir/MoveMe.md'), 'utf8')).toBe(originalContent);
+
+      // 2. Headless moves OldDir/MoveMe.md -> NewDir/MoveMe.md locally
+      fs.mkdirSync(path.join(vaultDir, 'NewDir'), { recursive: true });
+      fs.renameSync(
+        path.join(vaultDir, 'OldDir/MoveMe.md'),
+        path.join(vaultDir, 'NewDir/MoveMe.md')
+      );
+
+      const syncExit2 = await runSyncCommand({ configPath, dryRun: false, json: true });
+      expect(syncExit2).toBe(EXIT_CODES.SUCCESS);
+
+      // 3. Upstream reads NewDir/MoveMe.md (active) and OldDir/MoveMe.md (deleted: true)
+      const readNew = await harness.readUpstreamNote(dbName, 'NewDir/MoveMe.md');
+      expect(readNew).not.toBeNull();
+      expect(readNew?.content).toBe(originalContent);
+      expect(readNew?.deleted).toBe(false);
+
+      const readOld = await harness.readUpstreamNote(dbName, 'OldDir/MoveMe.md');
+      expect(readOld).not.toBeNull();
+      expect(readOld?.deleted).toBe(true);
+    });
+
+    it('converges in real-time under continuous daemon mode upon upstream writes', async () => {
+      const dbName = 'daemon-convergence-live';
+      await harness.createDatabase(dbName);
+      await harness.seedLiveSyncData(dbName, { version: 12, locked: false });
+
+      const configPath = writeConfigFile(dbName);
+      await runArmCommand({ configPath, json: true });
+
+      let runningEngine: ContinuousEngine | undefined;
+      let runningShutdown: ShutdownHandler | undefined;
+
+      const daemonPromise = runDaemonCommand({
+        configPath,
+        write: true,
+        debounceMs: 100,
+        periodicScanSec: 300,
+        registerSignalHandlers: false,
+        onEngineReady: (engine, shutdown) => {
+          runningEngine = engine;
+          runningShutdown = shutdown;
+        },
+      });
+
+      // Wait for engine to start
+      await pollUntil(
+        () =>
+          runningEngine !== undefined &&
+          runningEngine.stateMachine.getState() === 'HEALTHY_BIDIRECTIONAL',
+        5000
+      );
+
+      // Upstream writes a new note while daemon is actively watching
+      const liveContent = '# Live Note From Upstream Client\nCreated while continuous daemon is running.';
+      await harness.writeUpstreamPlainNote(dbName, 'LiveStreamNote.md', liveContent);
+
+      // Wait for daemon to detect remote change and materialize it locally
+      await pollUntil(() => {
+        const localPath = path.join(vaultDir, 'LiveStreamNote.md');
+        return fs.existsSync(localPath) && fs.readFileSync(localPath, 'utf8') === liveContent;
+      }, 10000);
+
+      // Now user updates the file locally
+      const updatedContent = '# Live Note Modified Locally\nContinuous daemon pushes this back upstream.';
+      fs.writeFileSync(path.join(vaultDir, 'LiveStreamNote.md'), updatedContent, 'utf8');
+
+      // Wait for daemon to detect local change and push to CouchDB
+      await pollUntil(async () => {
+        const read = await harness.readUpstreamNote(dbName, 'LiveStreamNote.md');
+        return read !== null && read.content === updatedContent;
+      }, 10000);
+
+      // Gracefully shutdown daemon
+      if (runningEngine) {
+        await runningEngine.stop();
+      }
+      const exitCode = await daemonPromise;
+      expect(exitCode).toBe(EXIT_CODES.SUCCESS);
+    });
+  });
 });
+
