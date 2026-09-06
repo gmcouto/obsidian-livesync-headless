@@ -69,4 +69,45 @@ export class ProvenanceRepository {
       reflectedAt: String(row.reflected_at),
     };
   }
+
+  deleteProvenance(path: string): void {
+    const stmt = this.db.prepare(`
+      DELETE FROM file_provenance
+      WHERE path = ?
+    `);
+    stmt.run(path);
+  }
+
+  getAllAsMap(): Map<string, ProvenanceRecord> {
+    const stmt = this.db.prepare(`
+      SELECT
+        path,
+        remote_revision,
+        content_sha256,
+        observed_mtime,
+        remote_fingerprint,
+        reflected_at
+      FROM file_provenance
+    `);
+
+    const rows = stmt.all() as Record<string, unknown>[];
+    const map = new Map<string, ProvenanceRecord>();
+
+    for (const row of rows) {
+      const record: ProvenanceRecord = {
+        path: String(row.path),
+        remoteRevision: String(row.remote_revision),
+        contentSha256: String(row.content_sha256),
+        observedMtime:
+          row.observed_mtime === null || row.observed_mtime === undefined
+            ? null
+            : Number(row.observed_mtime),
+        remoteFingerprint: String(row.remote_fingerprint),
+        reflectedAt: String(row.reflected_at),
+      };
+      map.set(record.path, record);
+    }
+
+    return map;
+  }
 }

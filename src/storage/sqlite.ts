@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 export function runMigrations(db: DatabaseSync): void {
   db.exec(`
@@ -59,6 +59,43 @@ export function runMigrations(db: DatabaseSync): void {
       'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)'
     );
     stmt.run(2, new Date().toISOString());
+  }
+
+  // Migration 003: quarantine table
+  if (!appliedVersions.has(3)) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS quarantine (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        original_path TEXT NOT NULL,
+        quarantine_path TEXT NOT NULL,
+        remote_revision TEXT,
+        content_sha256 TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        quarantined_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_quarantine_path ON quarantine(original_path);
+    `);
+
+    const stmt = db.prepare(
+      'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)'
+    );
+    stmt.run(3, new Date().toISOString());
+  }
+
+  // Migration 004: pull_checkpoints table
+  if (!appliedVersions.has(4)) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS pull_checkpoints (
+        remote_fingerprint TEXT PRIMARY KEY,
+        last_update_seq TEXT NOT NULL,
+        completed_at TEXT NOT NULL
+      );
+    `);
+
+    const stmt = db.prepare(
+      'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)'
+    );
+    stmt.run(4, new Date().toISOString());
   }
 }
 

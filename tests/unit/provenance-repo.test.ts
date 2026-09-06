@@ -22,8 +22,8 @@ describe("SQLite Provenance Repository", () => {
     }
   });
 
-  it("ensures schema version is at least 2 and file_provenance table exists", () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(2);
+  it("ensures schema version is at least 4 and file_provenance table exists", () => {
+    expect(CURRENT_SCHEMA_VERSION).toBe(4);
     const db = openDatabase(dbPath);
     expect(fs.existsSync(dbPath)).toBe(true);
 
@@ -35,6 +35,8 @@ describe("SQLite Provenance Repository", () => {
     expect(names).toContain("schema_migrations");
     expect(names).toContain("remote_admission");
     expect(names).toContain("file_provenance");
+    expect(names).toContain("quarantine");
+    expect(names).toContain("pull_checkpoints");
     db.close();
   });
 
@@ -150,6 +152,61 @@ describe("SQLite Provenance Repository", () => {
     expect(columnNames).not.toContain("body");
     expect(columnNames).not.toContain("content");
     expect(columnNames).not.toContain("data");
+
+    db.close();
+  });
+
+  it("deletes a provenance record by path", () => {
+    const db = openDatabase(dbPath);
+    const repo = new ProvenanceRepository(db);
+
+    const record: ProvenanceRecord = {
+      path: "ToDelete.md",
+      remoteRevision: "1-rev",
+      contentSha256: "hash",
+      observedMtime: 12345,
+      remoteFingerprint: "fp",
+      reflectedAt: new Date().toISOString(),
+    };
+
+    repo.saveProvenance(record);
+    expect(repo.getByPath("ToDelete.md")).not.toBeNull();
+
+    repo.deleteProvenance("ToDelete.md");
+    expect(repo.getByPath("ToDelete.md")).toBeNull();
+
+    db.close();
+  });
+
+  it("returns all provenance records as a Map", () => {
+    const db = openDatabase(dbPath);
+    const repo = new ProvenanceRepository(db);
+
+    expect(repo.getAllAsMap().size).toBe(0);
+
+    repo.saveProvenance({
+      path: "FileA.md",
+      remoteRevision: "1-a",
+      contentSha256: "hashA",
+      observedMtime: 100,
+      remoteFingerprint: "fp",
+      reflectedAt: new Date().toISOString(),
+    });
+
+    repo.saveProvenance({
+      path: "FileB.md",
+      remoteRevision: "2-b",
+      contentSha256: "hashB",
+      observedMtime: null,
+      remoteFingerprint: "fp",
+      reflectedAt: new Date().toISOString(),
+    });
+
+    const map = repo.getAllAsMap();
+    expect(map.size).toBe(2);
+    expect(map.get("FileA.md")?.remoteRevision).toBe("1-a");
+    expect(map.get("FileB.md")?.remoteRevision).toBe("2-b");
+    expect(map.get("FileB.md")?.observedMtime).toBeNull();
 
     db.close();
   });
