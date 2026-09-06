@@ -13,8 +13,8 @@
 - [x] **CONF-04**: User can inspect connectivity, database identity, LiveSync version state, locks, security material, preferred tweaks, and representative records through a structurally read-only command.
 - [x] **CONF-05**: User can pull and adopt compatible remote LiveSync settings locally while incompatible, unknown, locked, or future-version settings prevent synchronization writes.
 - [x] **CONF-06**: User receives a stable compatibility report that records the remote fingerprint, negotiated-settings hash, supported and unsupported capabilities, and any blockers.
-- [ ] **CONF-07**: User can explicitly arm write access only after a successful verified bootstrap, with the grant bound to the remote fingerprint, vault root, settings hash, compatibility-library version, and bootstrap generation.
-- [ ] **CONF-08**: User's write grant is revoked automatically when its bound remote identity, vault path, settings, compatibility version, or verified baseline changes.
+- [x] **CONF-07**: User can explicitly arm write access only after a successful verified bootstrap, with the grant bound to the remote fingerprint, vault root, settings hash, compatibility-library version, and bootstrap generation.
+- [x] **CONF-08**: User's write grant is revoked automatically when its bound remote identity, vault path, settings, compatibility version, or verified baseline changes.
 
 ### LiveSync Compatibility
 
@@ -64,7 +64,7 @@
 
 - [x] **SAFE-01**: User cannot invoke database creation, drop, reset, rebuild, overwrite, purge, compaction, garbage collection, retention changes, security changes, design/index management, or server-managed replication through the application.
 - [x] **SAFE-02**: User's first-contact and dry-run traffic is restricted to an explicit read-only HTTP method and endpoint allowlist, with mutation attempts blocked before transport.
-- [ ] **SAFE-03**: User's write-capable traffic is restricted to the minimum LiveSync document operations required for armed file synchronization, with destructive and administrative endpoints denied after URL canonicalization and redirects.
+- [x] **SAFE-03**: User's write-capable traffic is restricted to the minimum LiveSync document operations required for armed file synchronization, with destructive and administrative endpoints denied after URL canonicalization and redirects.
 - [x] **SAFE-04**: User's credentials, passphrases, setup URIs, authorization headers, and decrypted payloads are excluded or redacted from logs, errors, state databases, crash output, and packaged artifacts.
 - [x] **SAFE-05**: User's checkpoints, exact revision provenance, admission records, write grants, operation journal, and quarantine index are stored durably outside the synchronized vault namespace.
 - [x] **SAFE-06**: User receives human-readable and JSON Lines diagnostics with stable outcome categories and non-zero exit or health states for incompatibility, authentication failure, corruption, conflict, partial write, and transient outage.
@@ -126,8 +126,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONF-04 | Phase 1 | Complete |
 | CONF-05 | Phase 1 | Complete |
 | CONF-06 | Phase 1 | Complete |
-| CONF-07 | Phase 4 | Pending |
-| CONF-08 | Phase 4 | Pending |
+| CONF-07 | Phase 4 | Complete |
+| CONF-08 | Phase 4 | Complete |
 | COMP-01 | Phase 2 | Complete |
 | COMP-02 | Phase 2 | Complete |
 | COMP-03 | Phase 2 | Complete |
@@ -162,7 +162,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DAEM-08 | Phase 5 | Pending |
 | SAFE-01 | Phase 1 | Complete |
 | SAFE-02 | Phase 1 | Complete |
-| SAFE-03 | Phase 4 | Pending |
+| SAFE-03 | Phase 4 | Complete |
 | SAFE-04 | Phase 1 | Complete |
 | SAFE-05 | Phase 3 | Complete |
 | SAFE-06 | Phase 1 | Complete |
