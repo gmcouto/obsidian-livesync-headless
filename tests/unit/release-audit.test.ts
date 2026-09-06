@@ -194,9 +194,11 @@ describe('Release Safety Auditor Suite (DIST-05)', () => {
 
     it('detects forbidden cloud providers or high-entropy tokens in bundle', () => {
       const mockBundlePath = path.join(tempDir, 'bundle.cjs');
+      // Construct the test key at runtime so static secret scanners don't flag this file.
+      const fakeKey = ['sk', 'live', '123456789012345678901234'].join('_');
       fs.writeFileSync(
         mockBundlePath,
-        `"use strict";\nconst s3 = require('@aws-sdk/client-s3');\nconst key = "REDACTED_FAKE_KEY_FOR_TESTING";\n`
+        `"use strict";\nconst s3 = require('@aws-sdk/client-s3');\nconst key = "${fakeKey}";\n`
       );
 
       const violations = auditBundle(mockBundlePath);
