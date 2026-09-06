@@ -1,0 +1,380 @@
+import { EventEmitter } from 'node:events';
+import { openDatabase } from '../storage/sqlite.js';
+import { AdmissionRepository } from '../storage/admission-repo.js';
+import { WriteGrantRepo } from '../storage/write-grant-repo.js';
+import { CheckpointRepository } from '../storage/checkpoint-repo.js';
+import { DaemonStateMachine } from './daemon-state.js';
+import { FsWatcher, type InvalidationHint } from './fs-watcher.js';
+import { ChangesConsumer, type RemoteChangeEvent } from './changes-consumer.js';
+import { ReconnectionManager } from './reconnection-manager.js';
+import { CheckpointWindow } from './checkpoint-window.js';
+import { FileWorkerPool } from './file-worker-pool.js';
+import { FileReconciler } from './file-reconciler.js';
+import { SyncCoordinator } from '../domain/sync-coordinator.js';
+import type { WriteCapability, ArmedSyncCapability } from '../security/capabilities.js';
+import { isWriteCapability, isArmedSyncCapability } from '../security/capabilities.js';
+
+export interface ContinuousEngineOptions {
+  readonly vaultRoot: string;
+  readonly statePath: string;
+  readonly stateRoot?: string;
+  readonly baseUrl: URL;
+  readonly databaseName: string;
+  readonly credentials?: { username?: string; password?: string };
+  readonly encryptionPassphrase?: string;
+  readonly algorithm?: string;
+  readonly useDynamicIterationCount?: boolean;
+  readonly usePathObfuscation?: boolean;
+  readonly pbkdf2salt?: string;
+  readonly handleFilenameCaseSensitive?: boolean;
+  readonly customChunkSize?: number;
+  readonly minimumChunkSize?: number;
+  readonly periodicScanIntervalMs?: number;
+  readonly debounceMs?: number;
+  readonly workerConcurrency?: number;
+  readonly fetch?: typeof globalThis.fetch;
+  readonly capability?: WriteCapability | ArmedSyncCapability;
+  readonly readOnly?: boolean;
+}
+
+export class ContinuousEngine extends EventEmitter {
+  readonly stateMachine = new DaemonStateMachine();
+  private readonly fsWatcher: FsWatcher;
+  private readonly changesConsumer: ChangesConsumer;
+  private readonly reconnectionManager: ReconnectionManager;
+  private readonly checkpointWindow = new CheckpointWindow();
+  private readonly workerPool: FileWorkerPool;
+  private readonly reconciler: FileReconciler;
+  private readonly syncCoordinator: SyncCoordinator;
+
+  private periodicTimer: NodeJS.Timeout | null = null;
+  private activeCapability: WriteCapability | ArmedSyncCapability | null = null;
+  private remoteFingerprint = '';
+  private isShuttingDown = false;
+
+  constructor(private readonly options: ContinuousEngineOptions) {
+    super();
+
+    this.activeCapability = options.capability ?? null;
+
+    this.fsWatcher = new FsWatcher({
+      vaultRoot: options.vaultRoot,
+      debounceMs: options.debounceMs ?? 300,
+      onInvalidation: (hint) => this.onFsInvalidation(hint),
+    });
+
+    this.changesConsumer = new ChangesConsumer({
+      couchDbUrl: options.baseUrl,
+      databaseName: options.databaseName,
+      fetchFn: options.fetch,
+      authHeader:
+        options.credentials?.username || options.credentials?.password
+          ? `Basic ${Buffer.from(`${options.credentials.username ?? ''}:${options.credentials.password ?? ''}`).toString('base64')}`
+          : undefined,
+      onEvent: (event) => this.onRemoteChange(event),
+      onError: (err) => this.onRemoteError(err),
+    });
+
+    this.reconnectionManager = new ReconnectionManager({
+      baseDelayMs: 500,
+      maxDelayMs: 30000,
+      jitterFactor: 0.25,
+    });
+
+    this.reconciler = new FileReconciler({
+      vaultRoot: options.vaultRoot,
+      statePath: options.statePath,
+      stateRoot: options.stateRoot,
+      baseUrl: options.baseUrl,
+      databaseName: options.databaseName,
+      remoteFingerprint: '', // updated during preflight
+      credentials: options.credentials,
+      encryptionPassphrase: options.encryptionPassphrase,
+      algorithm: options.algorithm,
+      useDynamicIterationCount: options.useDynamicIterationCount,
+      usePathObfuscation: options.usePathObfuscation,
+      pbkdf2salt: options.pbkdf2salt,
+      handleFilenameCaseSensitive: options.handleFilenameCaseSensitive,
+      customChunkSize: options.customChunkSize,
+      minimumChunkSize: options.minimumChunkSize,
+      fetch: options.fetch,
+      stateMachine: this.stateMachine,
+      getCapability: () => this.activeCapability,
+    });
+
+    this.syncCoordinator = new SyncCoordinator({
+      baseUrl: options.baseUrl,
+      databaseName: options.databaseName,
+      vaultRoot: options.vaultRoot,
+      statePath: options.statePath,
+      stateRoot: options.stateRoot,
+      dryRun: false,
+      credentials: options.credentials,
+      encryptionPassphrase: options.encryptionPassphrase,
+      algorithm: options.algorithm,
+      useDynamicIterationCount: options.useDynamicIterationCount,
+      usePathObfuscation: options.usePathObfuscation,
+      pbkdf2salt: options.pbkdf2salt,
+      handleFilenameCaseSensitive: options.handleFilenameCaseSensitive,
+      customChunkSize: options.customChunkSize,
+      minimumChunkSize: options.minimumChunkSize,
+      remoteFingerprint: '', // populated in preflight
+      fetch: options.fetch,
+    });
+
+    this.workerPool = new FileWorkerPool({
+      concurrency: options.workerConcurrency ?? 4,
+      workerFn: async (hint) => this.processInvalidationHint(hint),
+      onOverflow: () => this.onQueueOverflow(),
+    });
+  }
+
+  async start(): Promise<void> {
+    this.stateMachine.transitionTo('INITIALIZING');
+
+    // 1. Preflight: verify admission and write grant (DAEM-01)
+    await this.validateAdmissionAndGrant();
+
+    // 2. Catch-up: execute complete finite sync pass (DAEM-02)
+    this.stateMachine.transitionTo('CATCHING_UP');
+    await this.executeCatchUpPass();
+
+    // 3. Transition to live state
+    if (this.options.readOnly || !this.activeCapability) {
+      this.stateMachine.transitionTo('DEGRADED_READ_ONLY', 'Operating in read-only mode');
+    } else {
+      this.stateMachine.transitionTo('HEALTHY_BIDIRECTIONAL');
+    }
+
+    // 4. Initialize checkpoint sequence in changes consumer
+    const db = openDatabase(this.options.statePath);
+    try {
+      const checkpointRepo = new CheckpointRepository(db);
+      const cp = checkpointRepo.getCheckpoint(this.remoteFingerprint);
+      if (cp?.lastUpdateSeq) {
+        this.changesConsumer.setSince(cp.lastUpdateSeq);
+      }
+    } finally {
+      db.close();
+    }
+
+    // 5. Start live intake streams
+    await this.fsWatcher.start();
+    this.startChangesFeedStream();
+
+    // 6. Schedule periodic convergence scans (DAEM-06)
+    const scanInterval = this.options.periodicScanIntervalMs ?? 300000;
+    this.periodicTimer = setInterval(() => {
+      this.triggerPeriodicScan().catch((err) => {
+        this.emit('error', err);
+      });
+    }, scanInterval);
+  }
+
+  private async validateAdmissionAndGrant(): Promise<void> {
+    const db = openDatabase(this.options.statePath);
+    try {
+      const admissionRepo = new AdmissionRepository(db);
+      const latestAdmission = admissionRepo.getLatest();
+      if (!latestAdmission) {
+        throw new Error('No remote admission record found. Run inspect or sync first to admit database.');
+      }
+
+      this.remoteFingerprint = latestAdmission.remoteFingerprint;
+
+      if (!this.options.readOnly && this.activeCapability) {
+        const grantRepo = new WriteGrantRepo(db);
+        const verification = grantRepo.verifyGrantBinding(this.activeCapability.grantId, {
+          remoteFingerprint: this.remoteFingerprint,
+          vaultRoot: this.options.vaultRoot,
+          settingsHash: this.activeCapability.settingsHash,
+          commonlibVersion: this.activeCapability.commonlibVersion,
+          bootstrapGeneration: this.activeCapability.bootstrapGeneration,
+        });
+
+        if (!verification.valid) {
+          // Fail closed: drop capability and run read-only (DAEM-07)
+          this.activeCapability = null;
+          this.emit(
+            'warning',
+            `Active write grant is invalid: ${verification.reason}. Falling back to read-only.`
+          );
+        }
+      }
+    } finally {
+      db.close();
+    }
+  }
+
+  private async executeCatchUpPass(): Promise<void> {
+    if (this.activeCapability) {
+      const result = await this.syncCoordinator.sync(this.activeCapability);
+      if (!result.ok && result.conflicts.length > 0) {
+        this.emit('conflicts', result.conflicts);
+      }
+    } else {
+      const readOnlyCoordinator = new SyncCoordinator({
+        baseUrl: this.options.baseUrl,
+        databaseName: this.options.databaseName,
+        vaultRoot: this.options.vaultRoot,
+        statePath: this.options.statePath,
+        stateRoot: this.options.stateRoot,
+        dryRun: true,
+        credentials: this.options.credentials,
+        encryptionPassphrase: this.options.encryptionPassphrase,
+        algorithm: this.options.algorithm,
+        useDynamicIterationCount: this.options.useDynamicIterationCount,
+        usePathObfuscation: this.options.usePathObfuscation,
+        pbkdf2salt: this.options.pbkdf2salt,
+        handleFilenameCaseSensitive: this.options.handleFilenameCaseSensitive,
+        customChunkSize: this.options.customChunkSize,
+        minimumChunkSize: this.options.minimumChunkSize,
+        remoteFingerprint: this.remoteFingerprint,
+        fetch: this.options.fetch,
+      });
+      const result = await readOnlyCoordinator.sync();
+      if (!result.ok && result.conflicts.length > 0) {
+        this.emit('conflicts', result.conflicts);
+      }
+    }
+  }
+
+  private onFsInvalidation(hint: InvalidationHint): void {
+    if (this.isShuttingDown) {
+      return;
+    }
+    this.workerPool.enqueue(hint);
+  }
+
+  private onRemoteChange(event: RemoteChangeEvent): void {
+    if (this.isShuttingDown) {
+      return;
+    }
+    this.checkpointWindow.trackSequence(event.seq);
+
+    const hint: InvalidationHint = {
+      path: event.docId,
+      source: 'remote_changes',
+      remoteSeq: event.seq,
+      timestamp: event.timestamp,
+    };
+
+    this.workerPool.enqueue(hint);
+  }
+
+  private onRemoteError(error: unknown): void {
+    if (this.isShuttingDown) {
+      return;
+    }
+
+    this.emit('warning', `Changes stream disconnected: ${(error as Error).message}. Scheduling reconnection.`);
+
+    this.reconnectionManager
+      .scheduleRetry(() => {
+        this.startChangesFeedStream();
+      })
+      .catch((err) => {
+        if (!this.isShuttingDown) {
+          this.emit('error', err);
+        }
+      });
+  }
+
+  private startChangesFeedStream(): void {
+    if (this.isShuttingDown) {
+      return;
+    }
+
+    this.changesConsumer.start().then(() => {
+      this.reconnectionManager.recordSuccess();
+    }).catch((err) => {
+      this.onRemoteError(err);
+    });
+  }
+
+  private async processInvalidationHint(hint: InvalidationHint): Promise<void> {
+    try {
+      const result = await this.reconciler.reconcile(hint.path);
+
+      if (hint.remoteSeq) {
+        if (result.success) {
+          this.checkpointWindow.markCompleted(hint.remoteSeq);
+          this.commitContiguousCheckpoints();
+        } else {
+          this.checkpointWindow.markFailed(hint.remoteSeq, result.error);
+        }
+      }
+
+      this.emit('reconciled', result);
+    } catch (err: unknown) {
+      if (hint.remoteSeq) {
+        this.checkpointWindow.markFailed(hint.remoteSeq, err);
+      }
+      throw err;
+    }
+  }
+
+  private commitContiguousCheckpoints(): void {
+    const db = openDatabase(this.options.statePath);
+    try {
+      const checkpointRepo = new CheckpointRepository(db);
+      this.checkpointWindow.commit(checkpointRepo, this.remoteFingerprint);
+    } finally {
+      db.close();
+    }
+  }
+
+  private onQueueOverflow(): void {
+    this.emit('warning', 'Worker queue reached capacity. Coalescing hints into full scan.');
+    this.workerPool.clear();
+    this.triggerPeriodicScan().catch((err) => {
+      this.emit('error', err);
+    });
+  }
+
+  async triggerPeriodicScan(): Promise<void> {
+    if (this.isShuttingDown) {
+      return;
+    }
+
+    try {
+      await this.executeCatchUpPass();
+    } catch (err: unknown) {
+      this.emit('warning', `Periodic scan failed: ${(err as Error).message}`);
+    }
+  }
+
+  async stop(timeoutMs = 10000): Promise<void> {
+    if (this.isShuttingDown) {
+      return;
+    }
+
+    this.isShuttingDown = true;
+    this.stateMachine.transitionTo('STOPPING');
+
+    if (this.periodicTimer) {
+      clearInterval(this.periodicTimer);
+      this.periodicTimer = null;
+    }
+
+    this.reconnectionManager.cancel();
+
+    // 1. Close intake streams
+    await this.fsWatcher.close();
+    await this.changesConsumer.close();
+
+    // 2. Drain worker pool
+    try {
+      await this.workerPool.drain(timeoutMs);
+    } catch {
+      // Timeout reached: force clear
+      this.workerPool.clear();
+    }
+
+    // 3. Final checkpoint commit
+    this.commitContiguousCheckpoints();
+
+    // 4. Set terminal state
+    this.stateMachine.transitionTo('STOPPED');
+  }
+}

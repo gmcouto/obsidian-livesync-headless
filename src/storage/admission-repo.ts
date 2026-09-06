@@ -105,4 +105,44 @@ export class AdmissionRepository {
     `);
     return Boolean(stmt.get(fingerprint, settingsHash));
   }
+
+  getLatest(): AdmissionRecord | null {
+    const stmt = this.db.prepare(`
+      SELECT
+        remote_fingerprint,
+        couchdb_url,
+        database_name,
+        couchdb_version,
+        version_info_rev,
+        milestone_rev,
+        sync_params_rev,
+        negotiated_settings_hash,
+        negotiated_settings_json,
+        update_seq,
+        admitted_at
+      FROM remote_admission
+      ORDER BY id DESC
+      LIMIT 1
+    `);
+
+    const row = stmt.get() as Record<string, unknown> | undefined;
+    if (!row) {
+      return null;
+    }
+
+    return {
+      remoteFingerprint: String(row.remote_fingerprint),
+      couchdbUrl: String(row.couchdb_url),
+      databaseName: String(row.database_name),
+      couchdbVersion: String(row.couchdb_version),
+      versionInfoRev: String(row.version_info_rev),
+      milestoneRev: String(row.milestone_rev),
+      syncParamsRev: row.sync_params_rev ? String(row.sync_params_rev) : null,
+      negotiatedSettingsHash: String(row.negotiated_settings_hash),
+      negotiatedSettingsJson: String(row.negotiated_settings_json),
+      updateSeq: String(row.update_seq),
+      admittedAt: String(row.admitted_at),
+    };
+  }
 }
+
