@@ -31,11 +31,11 @@
 - [x] **PULL-01**: User can run a finite pull-only dry-run that reads and decodes remote state and reports planned local actions without mutating CouchDB, the vault, or synchronization provenance.
 - [x] **PULL-02**: User can apply a verified pull to an empty or explicitly dedicated vault only after all content required for each file has been fetched, decrypted, assembled, and validated.
 - [x] **PULL-03**: User's created or replaced local files are staged on the same filesystem, flushed, atomically installed where supported, and read back before synchronization state is committed.
-- [ ] **PULL-04**: User's displaced or remotely deleted local files are moved to collision-safe recoverable quarantine, and the operation stops before removal when recovery cannot be guaranteed.
+- [x] **PULL-04**: User's displaced or remotely deleted local files are moved to collision-safe recoverable quarantine, and the operation stops before removal when recovery cannot be guaranteed.
 - [x] **PULL-05**: User's local state records the exact remote revision reflected in each file only after the corresponding filesystem change is durably verified.
-- [ ] **PULL-06**: User can resume an interrupted or partially blocked pull without treating incomplete files as local edits or advancing past unverified data.
+- [x] **PULL-06**: User can resume an interrupted or partially blocked pull without treating incomplete files as local edits or advancing past unverified data.
 - [x] **PULL-07**: User is protected from path traversal, absolute paths, unsafe symlinks, reserved state paths, and filename-case collisions during local reflection.
-- [ ] **PULL-08**: User can rerun a completed pull with no remote changes and receive an idempotent no-op result.
+- [x] **PULL-08**: User can rerun a completed pull with no remote changes and receive an idempotent no-op result.
 
 ### Bidirectional One-Shot Sync
 
@@ -66,7 +66,7 @@
 - [x] **SAFE-02**: User's first-contact and dry-run traffic is restricted to an explicit read-only HTTP method and endpoint allowlist, with mutation attempts blocked before transport.
 - [ ] **SAFE-03**: User's write-capable traffic is restricted to the minimum LiveSync document operations required for armed file synchronization, with destructive and administrative endpoints denied after URL canonicalization and redirects.
 - [x] **SAFE-04**: User's credentials, passphrases, setup URIs, authorization headers, and decrypted payloads are excluded or redacted from logs, errors, state databases, crash output, and packaged artifacts.
-- [ ] **SAFE-05**: User's checkpoints, exact revision provenance, admission records, write grants, operation journal, and quarantine index are stored durably outside the synchronized vault namespace.
+- [x] **SAFE-05**: User's checkpoints, exact revision provenance, admission records, write grants, operation journal, and quarantine index are stored durably outside the synchronized vault namespace.
 - [x] **SAFE-06**: User receives human-readable and JSON Lines diagnostics with stable outcome categories and non-zero exit or health states for incompatibility, authentication failure, corruption, conflict, partial write, and transient outage.
 - [ ] **SAFE-07**: User is warned that synchronization propagates changes and is not a substitute for an independent versioned backup.
 
@@ -138,11 +138,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PULL-01 | Phase 2 | Complete |
 | PULL-02 | Phase 2 | Complete |
 | PULL-03 | Phase 2 | Complete |
-| PULL-04 | Phase 3 | Pending |
+| PULL-04 | Phase 3 | Complete |
 | PULL-05 | Phase 2 | Complete |
-| PULL-06 | Phase 3 | Pending |
+| PULL-06 | Phase 3 | Complete |
 | PULL-07 | Phase 2 | Complete |
-| PULL-08 | Phase 3 | Pending |
+| PULL-08 | Phase 3 | Complete |
 | SYNC-01 | Phase 4 | Pending |
 | SYNC-02 | Phase 4 | Pending |
 | SYNC-03 | Phase 4 | Pending |
@@ -164,7 +164,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SAFE-02 | Phase 1 | Complete |
 | SAFE-03 | Phase 4 | Pending |
 | SAFE-04 | Phase 1 | Complete |
-| SAFE-05 | Phase 3 | Pending |
+| SAFE-05 | Phase 3 | Complete |
 | SAFE-06 | Phase 1 | Complete |
 | SAFE-07 | Phase 4 | Pending |
 | DIST-01 | Phase 6 | Pending |
