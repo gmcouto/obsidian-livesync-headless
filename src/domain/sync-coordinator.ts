@@ -202,6 +202,7 @@ export class SyncCoordinator {
         usePathObfuscation: this.options.usePathObfuscation,
         pbkdf2salt: this.options.pbkdf2salt,
         handleFilenameCaseSensitive: this.options.handleFilenameCaseSensitive,
+        credentials: this.options.credentials,
         fetch: this.guardedFetch,
       });
 
@@ -214,6 +215,7 @@ export class SyncCoordinator {
         usePathObfuscation: this.options.usePathObfuscation,
         pbkdf2salt: this.options.pbkdf2salt,
         handleFilenameCaseSensitive: this.options.handleFilenameCaseSensitive,
+        credentials: this.options.credentials,
         fetch: this.guardedFetch,
       });
 

@@ -24,6 +24,7 @@ export interface PushAdapterOptions {
   readonly usePathObfuscation?: boolean;
   readonly pbkdf2salt?: string;
   readonly handleFilenameCaseSensitive?: boolean;
+  readonly credentials?: { username?: string; password?: string };
   readonly fetch?: typeof globalThis.fetch;
 }
 
@@ -54,6 +55,14 @@ function parseSaltBytes(rawSalt?: string): Uint8Array | undefined {
     return hexStringToUint8Array(rawSalt);
   }
   return new TextEncoder().encode(rawSalt);
+}
+
+function buildAuthHeader(credentials?: { username?: string; password?: string }): string | undefined {
+  if (credentials?.username || credentials?.password) {
+    const raw = `${credentials.username ?? ''}:${credentials.password ?? ''}`;
+    return `Basic ${Buffer.from(raw).toString('base64')}`;
+  }
+  return undefined;
 }
 
 export class PushAdapter {
@@ -146,21 +155,30 @@ export class PushAdapter {
     let chunksUploaded = 0;
     let chunksExisting = 0;
     const dbUrl = new URL(this.options.databaseName, this.options.baseUrl).href.replace(/\/$/, '');
+    const authHeader = buildAuthHeader(this.options.credentials);
 
     for (const chunk of preparedChunks) {
       const chunkUrl = `${dbUrl}/${encodeURIComponent(chunk.id)}`;
+      const headHeaders: Record<string, string> = {};
+      if (authHeader) {
+        headHeaders.Authorization = authHeader;
+      }
       
       // Check if chunk already exists
-      const headRes = await this.guardedFetch(chunkUrl, { method: 'HEAD' });
+      const headRes = await this.guardedFetch(chunkUrl, { method: 'HEAD', headers: headHeaders });
       if (headRes.status === 200) {
         chunksExisting++;
         continue;
       }
 
       // Upload missing chunk
+      const putHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (authHeader) {
+        putHeaders.Authorization = authHeader;
+      }
       const putRes = await this.guardedFetch(chunkUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: putHeaders,
         body: JSON.stringify(chunk.doc),
       });
 
@@ -205,9 +223,13 @@ export class PushAdapter {
     }
 
     const noteUrl = `${dbUrl}/${encodeURIComponent(docId)}`;
+    const noteHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (authHeader) {
+      noteHeaders.Authorization = authHeader;
+    }
     const noteRes = await this.guardedFetch(noteUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: noteHeaders,
       body: JSON.stringify(noteDoc),
     });
 

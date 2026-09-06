@@ -155,7 +155,7 @@ export async function runSyncCommand(options: SyncCommandOptions): Promise<numbe
           vaultRoot: config.resolvedVaultPath,
           settingsHash: negotiation.negotiatedSettingsHash,
           commonlibVersion: '0.1.21',
-          bootstrapGeneration: probeResult.versionInfoDoc?._rev || '1',
+          bootstrapGeneration: probeResult.versionDoc?._rev || '1',
         };
 
         const verification = grantRepo.verifyGrantBinding(activeGrant.grantId, currentBinding);
@@ -210,7 +210,7 @@ export async function runSyncCommand(options: SyncCommandOptions): Promise<numbe
           ? probeResult.syncParamsDoc.pbkdf2salt
           : undefined,
       handleFilenameCaseSensitive: Boolean(negotiation.negotiatedSettings.handleFilenameCaseSensitive),
-      customChunkSize: config.performance.chunkSize,
+      customChunkSize: config.performance?.chunkSize,
       minimumChunkSize: 20,
       remoteFingerprint: negotiation.remoteFingerprint,
       updateSeq: probeResult.info?.update_seq ? String(probeResult.info.update_seq) : undefined,

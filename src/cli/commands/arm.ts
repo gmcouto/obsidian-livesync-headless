@@ -99,7 +99,7 @@ export async function runArmCommand(options: ArmCommandOptions): Promise<number>
       vaultRoot: config.resolvedVaultPath,
       settingsHash: negotiation.negotiatedSettingsHash,
       commonlibVersion: '0.1.21',
-      bootstrapGeneration: probeResult.versionInfoDoc?._rev || '1',
+      bootstrapGeneration: probeResult.versionDoc?._rev || '1',
     };
 
     const grant = grantRepo.issueGrant(binding);

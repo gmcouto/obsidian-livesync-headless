@@ -16,6 +16,7 @@ export interface DeletionWriterOptions {
   readonly usePathObfuscation?: boolean;
   readonly pbkdf2salt?: string;
   readonly handleFilenameCaseSensitive?: boolean;
+  readonly credentials?: { username?: string; password?: string };
   readonly fetch?: typeof globalThis.fetch;
 }
 
@@ -36,6 +37,14 @@ function parseSaltBytes(rawSalt?: string): Uint8Array | undefined {
     return hexStringToUint8Array(rawSalt);
   }
   return new TextEncoder().encode(rawSalt);
+}
+
+function buildAuthHeader(credentials?: { username?: string; password?: string }): string | undefined {
+  if (credentials?.username || credentials?.password) {
+    const raw = `${credentials.username ?? ''}:${credentials.password ?? ''}`;
+    return `Basic ${Buffer.from(raw).toString('base64')}`;
+  }
+  return undefined;
 }
 
 export class DeletionWriter {
@@ -95,10 +104,15 @@ export class DeletionWriter {
 
     const dbUrl = new URL(this.options.databaseName, this.options.baseUrl).href.replace(/\/$/, '');
     const docUrl = `${dbUrl}/${encodeURIComponent(docId)}`;
+    const authHeader = buildAuthHeader(this.options.credentials);
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (authHeader) {
+      headers.Authorization = authHeader;
+    }
 
     const res = await this.guardedFetch(docUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(deletionDoc),
     });
 
