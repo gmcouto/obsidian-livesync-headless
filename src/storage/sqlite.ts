@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 export function runMigrations(db: DatabaseSync): void {
   db.exec(`
@@ -96,6 +96,31 @@ export function runMigrations(db: DatabaseSync): void {
       'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)'
     );
     stmt.run(4, new Date().toISOString());
+  }
+
+  // Migration 005: write_grants table
+  if (!appliedVersions.has(5)) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS write_grants (
+        grant_id TEXT PRIMARY KEY,
+        remote_fingerprint TEXT NOT NULL,
+        vault_root TEXT NOT NULL,
+        settings_hash TEXT NOT NULL,
+        commonlib_version TEXT NOT NULL,
+        bootstrap_generation TEXT NOT NULL,
+        issued_at TEXT NOT NULL,
+        revoked INTEGER NOT NULL DEFAULT 0,
+        revoked_at TEXT,
+        revocation_reason TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_write_grants_active
+        ON write_grants(remote_fingerprint, vault_root, revoked);
+    `);
+
+    const stmt = db.prepare(
+      'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)'
+    );
+    stmt.run(5, new Date().toISOString());
   }
 }
 
