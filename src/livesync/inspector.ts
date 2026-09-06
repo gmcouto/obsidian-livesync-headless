@@ -73,8 +73,15 @@ export async function fetchDocumentIfExists<T extends CouchDbDocument>(
   authHeader?: string,
   query?: Record<string, string>
 ): Promise<T | null> {
-  const pathSegments = docId.split('/').map(encodeURIComponent).join('/');
-  const docUrl = new URL(`/${encodeURIComponent(databaseName)}/${pathSegments}`, baseUrl);
+  let docUrl: URL;
+  if (docId.startsWith('_design/') || docId.startsWith('_local/')) {
+    const slashIdx = docId.indexOf('/');
+    const prefix = docId.slice(0, slashIdx);
+    const rest = docId.slice(slashIdx + 1);
+    docUrl = new URL(`/${encodeURIComponent(databaseName)}/${prefix}/${encodeURIComponent(rest)}`, baseUrl);
+  } else {
+    docUrl = new URL(`/${encodeURIComponent(databaseName)}/${encodeURIComponent(docId)}`, baseUrl);
+  }
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       docUrl.searchParams.set(key, value);

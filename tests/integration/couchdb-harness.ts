@@ -57,14 +57,23 @@ export class CouchDbTestHarness {
     }
   }
 
+  private getDocUrl(dbName: string, docId: string): URL {
+    if (docId.startsWith('_design/') || docId.startsWith('_local/')) {
+      const slashIdx = docId.indexOf('/');
+      const prefix = docId.slice(0, slashIdx);
+      const rest = docId.slice(slashIdx + 1);
+      return new URL(`/${encodeURIComponent(dbName)}/${prefix}/${encodeURIComponent(rest)}`, this.getBaseUrl());
+    }
+    return new URL(`/${encodeURIComponent(dbName)}/${encodeURIComponent(docId)}`, this.getBaseUrl());
+  }
+
   async putDocument(
     dbName: string,
     docId: string,
     doc: Record<string, unknown>,
     query?: Record<string, string>
   ): Promise<{ rev: string }> {
-    const pathSegments = docId.split('/').map(encodeURIComponent).join('/');
-    const url = new URL(`/${encodeURIComponent(dbName)}/${pathSegments}`, this.getBaseUrl());
+    const url = this.getDocUrl(dbName, docId);
     if (query) {
       for (const [key, value] of Object.entries(query)) {
         url.searchParams.set(key, value);
@@ -92,8 +101,7 @@ export class CouchDbTestHarness {
     dbName: string,
     docId: string
   ): Promise<Record<string, unknown> | null> {
-    const pathSegments = docId.split('/').map(encodeURIComponent).join('/');
-    const url = new URL(`/${encodeURIComponent(dbName)}/${pathSegments}`, this.getBaseUrl());
+    const url = this.getDocUrl(dbName, docId);
     const res = await fetch(url.toString(), {
       headers: {
         Authorization: this.getAuthHeader(),
@@ -145,17 +153,25 @@ export class CouchDbTestHarness {
     for (const piece of pieces) {
       const hash = await digestHash(piece);
       const chunkId = `h:${hash}`;
-      await this.putDocument(dbName, chunkId, {
-        _id: chunkId,
-        type: 'leaf',
-        data: piece,
-      });
+      try {
+        await this.putDocument(dbName, chunkId, {
+          _id: chunkId,
+          type: 'leaf',
+          data: piece,
+        });
+      } catch (err: any) {
+        if (!err.message?.includes('409')) {
+          throw err;
+        }
+      }
       children.push(chunkId);
     }
 
     const id = String(await path2id_base(relativePath, false, true));
+    const existing = await this.getDocument(dbName, id);
     const { rev } = await this.putDocument(dbName, id, {
       _id: id,
+      ...(existing && typeof existing._rev === 'string' ? { _rev: existing._rev } : {}),
       type: 'plain',
       path: relativePath,
       children,
@@ -210,12 +226,18 @@ export class CouchDbTestHarness {
       const encryptedPiece = await encryptHkdf(piece, passphrase, saltBytes as never);
       const hash = await digestHash(encryptedPiece);
       const chunkId = `e:${hash}`;
-      await this.putDocument(dbName, chunkId, {
-        _id: chunkId,
-        type: 'leaf',
-        data: encryptedPiece,
-        e_: true,
-      });
+      try {
+        await this.putDocument(dbName, chunkId, {
+          _id: chunkId,
+          type: 'leaf',
+          data: encryptedPiece,
+          e_: true,
+        });
+      } catch (err: any) {
+        if (!err.message?.includes('409')) {
+          throw err;
+        }
+      }
       children.push(chunkId);
     }
 
@@ -227,9 +249,11 @@ export class CouchDbTestHarness {
     });
     const encryptedPath = `/\\:${await encryptHkdf(meta, passphrase, saltBytes as never)}`;
     const id = String(await path2id_base(relativePath, false, true));
+    const existing = await this.getDocument(dbName, id);
 
     const { rev } = await this.putDocument(dbName, id, {
       _id: id,
+      ...(existing && typeof existing._rev === 'string' ? { _rev: existing._rev } : {}),
       type: 'notes',
       path: encryptedPath,
       children,
@@ -284,12 +308,18 @@ export class CouchDbTestHarness {
       const encryptedPiece = await encryptHkdf(piece, passphrase, saltBytes as never);
       const hash = await digestHash(encryptedPiece);
       const chunkId = `e:${hash}`;
-      await this.putDocument(dbName, chunkId, {
-        _id: chunkId,
-        type: 'leaf',
-        data: encryptedPiece,
-        e_: true,
-      });
+      try {
+        await this.putDocument(dbName, chunkId, {
+          _id: chunkId,
+          type: 'leaf',
+          data: encryptedPiece,
+          e_: true,
+        });
+      } catch (err: any) {
+        if (!err.message?.includes('409')) {
+          throw err;
+        }
+      }
       children.push(chunkId);
     }
 
@@ -301,9 +331,11 @@ export class CouchDbTestHarness {
     });
     const encryptedPath = `/\\:${await encryptHkdf(meta, passphrase, saltBytes as never)}`;
     const id = String(await path2id_base(relativePath, passphrase, true));
+    const existing = await this.getDocument(dbName, id);
 
     const { rev } = await this.putDocument(dbName, id, {
       _id: id,
+      ...(existing && typeof existing._rev === 'string' ? { _rev: existing._rev } : {}),
       type: 'notes',
       path: encryptedPath,
       children,
@@ -429,7 +461,19 @@ export class CouchDbTestHarness {
           if (!chunkDoc) {
             throw new Error(`Referenced chunk '${chunkId}' not found in database '${dbName}'`);
           }
-          parts.push((chunkDoc.data as string) ?? '');
+          const chunkData = (chunkDoc.data as string) ?? '';
+          if (chunkDoc.e_ || chunkId.startsWith('e:')) {
+            if (!options?.passphrase) {
+              throw new Error('Passphrase required to decrypt note chunk');
+            }
+            const rawSalt = options.saltHex ?? 'salt-12345';
+            const saltBytes = (/^[0-9a-fA-F]+$/.test(rawSalt) && rawSalt.length % 2 === 0)
+              ? hexStringToUint8Array(rawSalt)
+              : new TextEncoder().encode(rawSalt);
+            parts.push(await decryptHkdf(chunkData, options.passphrase, saltBytes as never));
+          } else {
+            parts.push(chunkData);
+          }
         }
         content = parts.join('');
       }
