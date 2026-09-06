@@ -52,8 +52,6 @@ docker run -d \
 #### Docker Compose Example (`docker-compose.yml`)
 
 ```yaml
-version: '3.8'
-
 services:
   livesync:
     image: ghcr.io/gmcouto/obsidian-livesync-headless:latest
