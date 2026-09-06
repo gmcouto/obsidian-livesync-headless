@@ -24,7 +24,7 @@
 - [x] **COMP-04**: User can reconstruct and create text and binary files using the database's negotiated chunk hash, splitter, size, encoding, and compression conventions.
 - [x] **COMP-05**: User receives a blocking error when metadata identity, decrypted content, chunk identity, assembled size, or supported document shape fails validation.
 - [x] **COMP-06**: User's synchronization considers every live revision leaf and available ancestry needed to preserve conflict branches rather than trusting only CouchDB's deterministic winner.
-- [ ] **COMP-07**: User can coexist with supported Obsidian LiveSync clients against the same database without format divergence, hidden conflict loss, or normalization rewrites.
+- [x] **COMP-07**: User can coexist with supported Obsidian LiveSync clients against the same database without format divergence, hidden conflict loss, or normalization rewrites.
 
 ### Pull and Local Reflection
 
@@ -72,11 +72,11 @@
 
 ### Distribution and Compatibility Gate
 
-- [ ] **DIST-01**: User can run the distributed CLI as a single executable without separately installing Node.js or project dependencies.
-- [ ] **DIST-02**: User can access documented `inspect`, pull-only, one-shot synchronization, daemon, dry-run, status, and write-arming command flows from the CLI.
-- [ ] **DIST-03**: User receives a build whose LiveSync release, commonlib package, transitive compatibility overrides, and package integrity are pinned and reported.
-- [ ] **DIST-04**: User can rely on release tests covering current-client encrypted and obfuscated text/binary files, chunks, logical deletion, concurrent edits, conflict propagation, renames, restarts, and missing or corrupt content against disposable CouchDB instances.
-- [ ] **DIST-05**: User can rely on the packaged executable passing audits for forbidden database operations, unexpected runtime dependencies, out-of-scope providers, and embedded secrets before release.
+- [x] **DIST-01**: User can run the distributed CLI as a single executable without separately installing Node.js or project dependencies.
+- [x] **DIST-02**: User can access documented `inspect`, pull-only, one-shot synchronization, daemon, dry-run, status, and write-arming command flows from the CLI.
+- [x] **DIST-03**: User receives a build whose LiveSync release, commonlib package, transitive compatibility overrides, and package integrity are pinned and reported.
+- [x] **DIST-04**: User can rely on release tests covering current-client encrypted and obfuscated text/binary files, chunks, logical deletion, concurrent edits, conflict propagation, renames, restarts, and missing or corrupt content against disposable CouchDB instances.
+- [x] **DIST-05**: User can rely on the packaged executable passing audits for forbidden database operations, unexpected runtime dependencies, out-of-scope providers, and embedded secrets before release.
 
 ## v2 Requirements
 
@@ -134,7 +134,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-04 | Phase 2 | Complete |
 | COMP-05 | Phase 2 | Complete |
 | COMP-06 | Phase 2 | Complete |
-| COMP-07 | Phase 6 | Pending |
+| COMP-07 | Phase 6 | Complete |
 | PULL-01 | Phase 2 | Complete |
 | PULL-02 | Phase 2 | Complete |
 | PULL-03 | Phase 2 | Complete |
@@ -166,11 +166,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SAFE-05 | Phase 3 | Complete |
 | SAFE-06 | Phase 1 | Complete |
 | SAFE-07 | Phase 4 | Complete |
-| DIST-01 | Phase 6 | Pending |
-| DIST-02 | Phase 6 | Pending |
-| DIST-03 | Phase 6 | Pending |
-| DIST-04 | Phase 6 | Pending |
-| DIST-05 | Phase 6 | Pending |
+| DIST-01 | Phase 6 | Complete |
+| DIST-02 | Phase 6 | Complete |
+| DIST-03 | Phase 6 | Complete |
+| DIST-04 | Phase 6 | Complete |
+| DIST-05 | Phase 6 | Complete |
 
 **Coverage:**
 
