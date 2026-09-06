@@ -44,7 +44,7 @@ describe('DeletionWriter', () => {
     expect(capturedMethod).toBe('PUT');
     expect(capturedBody?._rev).toBe('1-baseRev');
     expect(capturedBody?.deleted).toBe(true);
-    expect(capturedBody?.type).toBe('notes');
+    expect(capturedBody?.type).toBe('plain');
     expect(capturedBody?.path).toBe('Folder/OldNote.md');
 
     // Verify round-trip decode with decodeNoteLeaf

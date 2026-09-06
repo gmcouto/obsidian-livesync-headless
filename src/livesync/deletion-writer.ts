@@ -102,7 +102,7 @@ export class DeletionWriter {
       _id: docId,
       _rev: baseRev,
       path: pathInDoc,
-      type: 'notes',
+      type: 'plain',
       deleted: true,
       mtime: Date.now(),
       ctime: Date.now(),

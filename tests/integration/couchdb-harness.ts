@@ -800,7 +800,7 @@ export class CouchDbTestHarness {
 
     const { rev } = await this.putDocument(dbName, id, {
       ...(existingRev ? { _rev: existingRev } : {}),
-      type: 'notes',
+      type: 'plain',
       path: relativePath,
       deleted: true,
       mtime: Date.now(),

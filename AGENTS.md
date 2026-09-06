@@ -257,7 +257,9 @@ The initial release supports only file synchronization through the LiveSync sync
 
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
+### LiveSync Document Protocol
+- **Note & Deletion Document Types**: All note metadata and logical deletion documents must set `type: 'plain'` (or `'newnote'`), never legacy `type: 'notes'`. Obsidian GUI's `isNoteEntry(doc)` strictly requires `type === 'plain' || type === 'newnote'`; documents with `type: 'notes'` cause Obsidian GUI's `ReplicateResultProcessor` to skip processing with `Skipped unexpected non-note document: <path>`.
+
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
