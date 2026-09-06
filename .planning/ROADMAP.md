@@ -102,7 +102,12 @@ Plans:
   4. User's intentional deletion becomes a LiveSync-compatible logical deletion on the proven branch; case-only and cross-path renames preserve revision history and verify the destination before retiring the source branch.
   5. User's unmatched local bytes and ambiguous conflict branches remain preserved and reported, byte-identical leaves collapse only when safe, reruns do not duplicate revisions or lose branches, and the CLI warns that synchronization is not an independent backup.
 
-**Plans:** TBD
+**Plans:** 4 plans
+
+- [ ] 04-01-PLAN.md — Storage, arming, and security infrastructure (Migration 005, write_grants, WriteGrantRepo, createArmedGuardedFetch)
+- [ ] 04-02-PLAN.md — LiveSync encoding, chunk-first push adapter, and logical deletion writer
+- [ ] 04-03-PLAN.md — Local vault scanner, rename detector, conflict reconciliation, and sync plan engine
+- [ ] 04-04-PLAN.md — One-shot sync coordinator, CLI commands (arm, sync), backup warning banner, and CouchDB integration tests
 
 ### Phase 5: Continuous Convergence Daemon
 
@@ -145,6 +150,6 @@ Plans:
 | 1. Guarded Read-Only Admission | 3/3 | Complete    | 2026-09-03 |
 | 2. Verified Pull Materialization | 4/4 | Complete    | 2026-09-05 |
 | 3. Recoverable Pull Operations | 4/4 | Complete    | 2026-09-06 |
-| 4. Explicitly Armed Bidirectional One-Shot | 0/TBD | Not started | - |
+| 4. Explicitly Armed Bidirectional One-Shot | 0/4 | Not started | - |
 | 5. Continuous Convergence Daemon | 0/TBD | Not started | - |
 | 6. Packaged Mixed-Client Release Gate | 0/TBD | Not started | - |
