@@ -15,6 +15,23 @@ import { runDaemonCommand } from './commands/daemon.js';
 import { runStatusCommand } from './commands/status.js';
 
 // Suppress experimental node:sqlite notices
+const originalEmitWarning = process.emitWarning;
+process.emitWarning = ((warning: string | Error, ...args: any[]) => {
+  if (typeof warning === 'string' && warning.includes('SQLite')) {
+    return;
+  }
+  if (
+    typeof warning === 'object' &&
+    warning !== null &&
+    'message' in warning &&
+    typeof (warning as { message?: unknown }).message === 'string' &&
+    (warning as { message: string }).message.includes('SQLite')
+  ) {
+    return;
+  }
+  return (originalEmitWarning as any).call(process, warning, ...args);
+}) as typeof process.emitWarning;
+
 process.on('warning', (warning) => {
   if (warning.name === 'ExperimentalWarning' && warning.message.includes('SQLite')) {
     return;

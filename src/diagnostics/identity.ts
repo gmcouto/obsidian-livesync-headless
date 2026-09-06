@@ -18,6 +18,19 @@ export interface BuildIdentity {
   };
 }
 
+function detectSea(): boolean {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const sea = require('node:sea');
+    if (typeof sea?.isSea === 'function') {
+      return Boolean(sea.isSea());
+    }
+  } catch {
+    // Fall back to process.isSea if available
+  }
+  return Boolean((process as unknown as { isSea?: () => boolean }).isSea?.());
+}
+
 export function getBuildIdentity(): BuildIdentity {
   return {
     name: 'obsidian-livesync-headless',
@@ -35,7 +48,7 @@ export function getBuildIdentity(): BuildIdentity {
       nodeVersion: process.version,
       platform: process.platform,
       arch: process.arch,
-      sea: Boolean((process as unknown as { isSea?: () => boolean }).isSea?.()),
+      sea: detectSea(),
     },
   };
 }
