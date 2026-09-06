@@ -142,8 +142,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PULL-05 | Phase 2 | Complete |
 | PULL-06 | Phase 3 | Complete |
 | PULL-07 | Phase 2 | Complete |
-| PULL-08 | Phase 3 | Complete |
-| SYNC-01 | Phase 4 | Pending |
+| SYNC-01 | Phase 4 | Complete |
 | SYNC-02 | Phase 4 | Complete |
 | SYNC-03 | Phase 4 | Complete |
 | SYNC-04 | Phase 4 | Complete |
@@ -151,7 +150,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SYNC-06 | Phase 4 | Complete |
 | SYNC-07 | Phase 4 | Complete |
 | SYNC-08 | Phase 4 | Complete |
-| SYNC-09 | Phase 4 | Pending |
+| SYNC-09 | Phase 4 | Complete |
 | DAEM-01 | Phase 5 | Pending |
 | DAEM-02 | Phase 5 | Pending |
 | DAEM-03 | Phase 5 | Pending |
@@ -166,7 +165,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SAFE-04 | Phase 1 | Complete |
 | SAFE-05 | Phase 3 | Complete |
 | SAFE-06 | Phase 1 | Complete |
-| SAFE-07 | Phase 4 | Pending |
+| SAFE-07 | Phase 4 | Complete |
 | DIST-01 | Phase 6 | Pending |
 | DIST-02 | Phase 6 | Pending |
 | DIST-03 | Phase 6 | Pending |
