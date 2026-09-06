@@ -108,7 +108,7 @@ export async function runArmCommand(options: ArmCommandOptions): Promise<number>
       remoteFingerprint: negotiation.remoteFingerprint,
       couchdbUrl: allowedBaseUrl.href,
       databaseName,
-      couchdbVersion: probeResult.databaseInfo?.version ?? '3.5.2',
+      couchdbVersion: probeResult.databaseInfo.couchdbVersion ?? '3.5.2',
       versionInfoRev: probeResult.versionDoc?._rev || '1',
       milestoneRev: probeResult.milestoneDoc?._rev || '1',
       syncParamsRev: probeResult.syncParamsDoc?._rev ?? null,

@@ -27,6 +27,7 @@ import {
 } from '../../livesync/negotiation.js';
 import { openDatabase } from '../../storage/sqlite.js';
 import { WriteGrantRepo } from '../../storage/write-grant-repo.js';
+import { AdmissionRepository } from '../../storage/admission-repo.js';
 import { SyncCoordinator, type SyncExecutionResult } from '../../domain/sync-coordinator.js';
 import { OutcomeCategory, EXIT_CODES } from '../../diagnostics/outcomes.js';
 
@@ -183,6 +184,26 @@ export async function runSyncCommand(options: SyncCommandOptions): Promise<numbe
       }
     }
 
+  const db = openDatabase(config.resolvedStatePath);
+  try {
+    const admissionRepo = new AdmissionRepository(db);
+    admissionRepo.saveAdmission({
+      remoteFingerprint: negotiation.remoteFingerprint,
+      couchdbUrl: allowedBaseUrl.href,
+      databaseName,
+      couchdbVersion: probeResult.databaseInfo.couchdbVersion ?? '3.5.2',
+      versionInfoRev: probeResult.versionDoc?._rev || '1',
+      milestoneRev: probeResult.milestoneDoc?._rev || '1',
+      syncParamsRev: probeResult.syncParamsDoc?._rev ?? null,
+      negotiatedSettingsHash: negotiation.negotiatedSettingsHash,
+      negotiatedSettingsJson: JSON.stringify(negotiation.negotiatedSettings),
+      updateSeq: probeResult.databaseInfo.updateSeq,
+      admittedAt: new Date().toISOString(),
+    });
+  } finally {
+    db.close();
+  }
+
     const preferredTweaks = probeResult.milestoneDoc?.tweak_values?.PREFERRED ?? {};
     const encrypt = Boolean(negotiation.negotiatedSettings.encrypt ?? preferredTweaks.encrypt);
     const algorithm =
@@ -208,24 +229,31 @@ export async function runSyncCommand(options: SyncCommandOptions): Promise<numbe
       pbkdf2salt:
         typeof probeResult.syncParamsDoc?.pbkdf2salt === 'string'
           ? probeResult.syncParamsDoc.pbkdf2salt
-          : undefined,
+          : typeof negotiation.negotiatedSettings.pbkdf2salt === 'string'
+            ? (negotiation.negotiatedSettings.pbkdf2salt as string)
+            : undefined,
       handleFilenameCaseSensitive: Boolean(negotiation.negotiatedSettings.handleFilenameCaseSensitive),
-      customChunkSize: config.performance?.chunkSize,
+      customChunkSize:
+        typeof negotiation.negotiatedSettings.customChunkSize === 'number'
+          ? (negotiation.negotiatedSettings.customChunkSize as number)
+          : undefined,
       minimumChunkSize: 20,
       remoteFingerprint: negotiation.remoteFingerprint,
-      updateSeq: probeResult.info?.update_seq ? String(probeResult.info.update_seq) : undefined,
+      updateSeq: probeResult.databaseInfo.updateSeq ? String(probeResult.databaseInfo.updateSeq) : undefined,
     });
 
     const result = await coordinator.sync(writeCapability);
 
-    if (options.dryRun) {
+    if (options.dryRun && preSnapshot) {
       postSnapshot = await ZeroMutationVerifier.captureSnapshot(
         guardedFetch,
         allowedBaseUrl,
         databaseName,
         credentials
       );
-      ZeroMutationVerifier.assertNoMutation(preSnapshot, postSnapshot);
+      if (postSnapshot) {
+        ZeroMutationVerifier.assertNoMutation(preSnapshot, postSnapshot);
+      }
     }
 
     const report = {
