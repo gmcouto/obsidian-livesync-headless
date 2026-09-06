@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readdir, readFile, stat } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { join, dirname, extname } from 'node:path';
 import { loadConfig, ConfigValidationError } from '../../config/loader.js';
 import { SecretRedactor, defaultRedactor } from '../../security/redaction.js';
 import {
@@ -93,7 +93,9 @@ export async function applyVerifiedPull(
     const provenanceRepo = new ProvenanceRepository(db);
     const quarantineRepo = new QuarantineRepository(db);
     const checkpointRepo = new CheckpointRepository(db);
-    const stateRoot = options.stateRoot ?? dirname(options.statePath);
+    const stateRoot = options.stateRoot
+      ? (extname(options.stateRoot) ? dirname(options.stateRoot) : options.stateRoot)
+      : dirname(options.statePath);
 
     for (const action of options.actions) {
       if (action.kind === 'quarantine-delete') {
@@ -545,7 +547,7 @@ export async function runPullCommand(options: PullCommandOptions): Promise<numbe
           actions,
           remoteFingerprint,
           statePath: config.resolvedStatePath,
-          stateRoot: config.resolvedStatePath,
+          stateRoot: dirname(config.resolvedStatePath),
           updateSeq: preSnapshot?.updateSeq,
         });
       }

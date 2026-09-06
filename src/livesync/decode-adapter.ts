@@ -393,6 +393,17 @@ export async function decodeNoteLeaf(
   }
 
   const deleted = leaf.deleted === true || leaf._deleted === true;
+  if (deleted) {
+    return {
+      ok: true,
+      path,
+      bytes: new Uint8Array(),
+      sourceRevision: leaf._rev,
+      type: type || 'notes',
+      deleted: true,
+    };
+  }
+
   const children = Array.isArray(leaf.children) ? (leaf.children as string[]) : [];
 
   if (type === EntryTypes.NOTE_PLAIN || type === EntryTypes.NOTE_BINARY) {

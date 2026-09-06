@@ -366,7 +366,6 @@ export class CouchDbTestHarness {
       type: 'notes',
       path: relativePath,
       deleted: true,
-      _deleted: true,
       mtime: Date.now(),
     });
     return { id, rev };
