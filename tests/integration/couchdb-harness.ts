@@ -329,6 +329,49 @@ export class CouchDbTestHarness {
     return { id, rev, byteLength };
   }
 
+  async seedDeletedNote(
+    dbName: string,
+    relativePath: string,
+    options?: {
+      passphrase?: string;
+    }
+  ): Promise<{ id: string; rev: string }> {
+    const { path2id_base } = await import(
+      '@vrtmrz/livesync-commonlib/compat/string_and_binary/path'
+    );
+    const id = String(await path2id_base(relativePath, options?.passphrase ?? false, true));
+
+    let existingRev: string | undefined;
+    try {
+      const url = new URL(
+        `/${encodeURIComponent(dbName)}/${encodeURIComponent(id)}`,
+        this.getBaseUrl()
+      );
+      const res = await fetch(url.toString(), {
+        headers: {
+          Authorization: this.getAuthHeader(),
+          Accept: 'application/json',
+        },
+      });
+      if (res.ok) {
+        const json = (await res.json()) as { _rev?: string };
+        existingRev = json._rev;
+      }
+    } catch {
+      // Ignore
+    }
+
+    const { rev } = await this.putDocument(dbName, id, {
+      ...(existingRev ? { _rev: existingRev } : {}),
+      type: 'notes',
+      path: relativePath,
+      deleted: true,
+      _deleted: true,
+      mtime: Date.now(),
+    });
+    return { id, rev };
+  }
+
   async stop(): Promise<void> {
     if (this.container) {
       await this.container.stop();
