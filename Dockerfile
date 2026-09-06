@@ -35,7 +35,8 @@ RUN chmod 755 /usr/local/bin/obsidian-livesync-headless
 RUN groupadd -g 1000 livesync && \
     useradd -u 1000 -g livesync -m -d /home/livesync -s /bin/sh livesync
 
-# Create default mount directories and set permissive permissions for rootless & custom UID execution
+# Create default mount directories (/vault for Obsidian vault, /data for storing sync state database)
+# and set permissive permissions for rootless & custom UID execution
 RUN mkdir -p /vault /data /home/livesync && \
     chown -R livesync:livesync /vault /data /home/livesync && \
     chmod -R 777 /vault /data /home/livesync

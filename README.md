@@ -44,10 +44,11 @@ docker run -d \
   -e LIVESYNC_COUCHDB_PASSWORD="secure_couchdb_password" \
   -e LIVESYNC_ENCRYPTION_PASSPHRASE="my_e2ee_passphrase" \
   ghcr.io/gmcouto/obsidian-livesync-headless:latest
+# Note: /vault mounts the Obsidian vault; /data is used for storing sync state (.state.db)
 ```
 
 > **Rootless & Non-Root Execution:**
-> The Docker image runs as an unprivileged user (`livesync`, UID/GID `1000:1000`) by default and fully supports rootless Docker, Podman, and custom user IDs via `--user <uid>:<gid>` (e.g. `--user $(id -u):$(id -g)`). Ensure mounted host directories `/path/to/my/vault` and `/path/to/livesync-data` are readable and writable by your host user.
+> The Docker image runs as an unprivileged user (`livesync`, UID/GID `1000:1000`) by default and fully supports rootless Docker, Podman, and custom user IDs via `--user <uid>:<gid>` (e.g. `--user $(id -u):$(id -g)`). Ensure mounted host directories `/path/to/my/vault` and `/path/to/livesync-data` (used for storing sync state) are readable and writable by your host user.
 
 #### Docker Compose Example (`docker-compose.yml`)
 
@@ -59,8 +60,8 @@ services:
     restart: unless-stopped
     user: "1000:1000"                         # Or match your host UID:GID (e.g., "${UID}:${GID}")
     volumes:
-      - /path/to/my/vault:/vault
-      - /path/to/livesync-data:/data
+      - /path/to/my/vault:/vault              # Obsidian vault directory
+      - /path/to/livesync-data:/data          # Directory for storing sync state database (.state.db)
     environment:
       - LIVESYNC_COUCHDB_URL=https://couchdb.example.com
       - LIVESYNC_COUCHDB_DATABASE=obsidian-vault
