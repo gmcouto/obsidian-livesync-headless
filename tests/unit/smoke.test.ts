@@ -74,10 +74,15 @@ describe('Walking Skeleton Smoke Tests', () => {
   });
 
   it('outputs version text when --version is supplied', async () => {
-    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    let stdout = '';
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: any) => {
+      stdout += String(chunk);
+      return true;
+    });
     const code = await main(['--version']);
     expect(code).toBe(EXIT_CODES.SUCCESS);
-    expect(stdoutSpy).toHaveBeenCalledWith(`obsidian-livesync-headless v${VERSION}\n`);
+    expect(stdout).toContain(`v${VERSION}`);
+    expect(stdout).toContain('OBSIDIAN LIVESYNC HEADLESS — BUILD & COMPATIBILITY IDENTITY');
     stdoutSpy.mockRestore();
   });
 

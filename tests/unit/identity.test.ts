@@ -84,4 +84,67 @@ describe('BuildIdentity Diagnostic Engine', () => {
     });
     expect(parsed.runtime).toBeDefined();
   });
+
+  it('handles CLI version command and flags in human and JSON formats', async () => {
+    const { main, CLI_HELP } = await import('../../src/cli/index.js');
+
+    // Check CLI_HELP contains all 7 commands
+    expect(CLI_HELP).toContain('inspect');
+    expect(CLI_HELP).toContain('pull');
+    expect(CLI_HELP).toContain('arm');
+    expect(CLI_HELP).toContain('sync');
+    expect(CLI_HELP).toContain('daemon');
+    expect(CLI_HELP).toContain('status');
+    expect(CLI_HELP).toContain('version');
+
+    const originalWrite = process.stdout.write;
+    try {
+      let stdout = '';
+      process.stdout.write = ((chunk: any) => {
+        stdout += String(chunk);
+        return true;
+      }) as any;
+
+      // test `version` command (human)
+      stdout = '';
+      let code = await main(['version']);
+      expect(code).toBe(0);
+      expect(stdout).toContain('OBSIDIAN LIVESYNC HEADLESS — BUILD & COMPATIBILITY IDENTITY');
+
+      // test `--version` flag (human)
+      stdout = '';
+      code = await main(['--version']);
+      expect(code).toBe(0);
+      expect(stdout).toContain('OBSIDIAN LIVESYNC HEADLESS — BUILD & COMPATIBILITY IDENTITY');
+
+      // test `-v` flag (human)
+      stdout = '';
+      code = await main(['-v']);
+      expect(code).toBe(0);
+      expect(stdout).toContain('OBSIDIAN LIVESYNC HEADLESS — BUILD & COMPATIBILITY IDENTITY');
+
+      // test `version --json` (JSON)
+      stdout = '';
+      code = await main(['version', '--json']);
+      expect(code).toBe(0);
+      const parsedVersion = JSON.parse(stdout.trim());
+      expect(parsedVersion.type).toBe('version_identity');
+      expect(parsedVersion.liveSyncCompatibility).toBe('1.0.23');
+
+      // test `-v --json` (JSON)
+      stdout = '';
+      code = await main(['-v', '--json']);
+      expect(code).toBe(0);
+      const parsedVJson = JSON.parse(stdout.trim());
+      expect(parsedVJson.type).toBe('version_identity');
+
+      // test `--help` flag
+      stdout = '';
+      code = await main(['--help']);
+      expect(code).toBe(0);
+      expect(stdout).toContain('obsidian-livesync-headless [command] [options]');
+    } finally {
+      process.stdout.write = originalWrite;
+    }
+  });
 });

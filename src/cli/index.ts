@@ -2,11 +2,24 @@ import { parseArgs } from 'node:util';
 import { logger } from '../diagnostics/logger.js';
 import { EXIT_CODES } from '../diagnostics/outcomes.js';
 import { defaultRedactor } from '../security/redaction.js';
+import {
+  getBuildIdentity,
+  formatIdentityHuman,
+  formatIdentityJson,
+} from '../diagnostics/identity.js';
 import { runInspectCommand } from './commands/inspect.js';
 import { runPullCommand } from './commands/pull.js';
 import { runArmCommand } from './commands/arm.js';
 import { runSyncCommand } from './commands/sync.js';
 import { runDaemonCommand } from './commands/daemon.js';
+import { runStatusCommand } from './commands/status.js';
+
+// Suppress experimental node:sqlite notices
+process.on('warning', (warning) => {
+  if (warning.name === 'ExperimentalWarning' && warning.message.includes('SQLite')) {
+    return;
+  }
+});
 
 export interface CliOptions {
   config?: string;
@@ -34,6 +47,8 @@ Commands:
   arm                         Issue or revoke durable 5-tuple write grant for vault & remote
   sync                        Bidirectional synchronization with chunk-first push and guard
   daemon                      Continuous unattended convergence daemon
+  status                      Inspect local vault state, write grants, and pull checkpoints
+  version                     Show build and compatibility identity
 
 Options:
   -c, --config <path>         Path to YAML configuration file
@@ -45,12 +60,15 @@ Options:
       --dry-run               Preview synchronization actions without mutation
       --revoke                Revoke active write grant for the vault (arm command)
   -h, --help                  Show help and usage information
-  -v, --version               Show version information
+  -v, --version               Show version and compatibility information
 `;
 
 export const VERSION = '0.1.0';
 
-export function parseCliArgs(args: string[] = process.argv.slice(2)): { command?: string; options: CliOptions } {
+export function parseCliArgs(args: string[] = process.argv.slice(2)): {
+  command?: string;
+  options: CliOptions;
+} {
   const { values, positionals } = parseArgs({
     args,
     options: {
@@ -102,7 +120,9 @@ export function parseCliArgs(args: string[] = process.argv.slice(2)): { command?
     options: {
       config: values.config,
       write: values.write ?? false,
-      periodicScanSec: values['periodic-scan-sec'] ? parseInt(values['periodic-scan-sec'], 10) : undefined,
+      periodicScanSec: values['periodic-scan-sec']
+        ? parseInt(values['periodic-scan-sec'], 10)
+        : undefined,
       concurrency: values.concurrency ? parseInt(values.concurrency, 10) : undefined,
       debounceMs: values['debounce-ms'] ? parseInt(values['debounce-ms'], 10) : undefined,
       json: values.json ?? false,
@@ -118,12 +138,20 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
   try {
     const parsed = parseCliArgs(args);
 
-    if (parsed.options.version) {
-      process.stdout.write(`obsidian-livesync-headless v${VERSION}\n`);
+    if (parsed.command === 'version' || parsed.options.version) {
+      const identity = getBuildIdentity();
+      if (parsed.options.json) {
+        process.stdout.write(formatIdentityJson(identity));
+      } else {
+        process.stdout.write(formatIdentityHuman(identity));
+      }
       return EXIT_CODES.SUCCESS;
     }
 
-    if (parsed.options.help || (args.length === 0 && !parsed.command && !parsed.options.config)) {
+    if (
+      parsed.options.help ||
+      (args.length === 0 && !parsed.command && !parsed.options.config)
+    ) {
       process.stdout.write(CLI_HELP);
       return EXIT_CODES.SUCCESS;
     }
@@ -133,6 +161,18 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
       hasConfig: Boolean(parsed.options.config),
       json: parsed.options.json,
     });
+
+    if (parsed.command === 'status') {
+      if (!parsed.options.config) {
+        logger.error('Missing required configuration file (--config <path>)');
+        return EXIT_CODES.CONFIG_ERROR;
+      }
+
+      return await runStatusCommand({
+        configPath: parsed.options.config,
+        json: parsed.options.json,
+      });
+    }
 
     if (parsed.command === 'daemon') {
       if (!parsed.options.config) {
@@ -214,7 +254,10 @@ export async function main(args: string[] = process.argv.slice(2)): Promise<numb
 }
 
 // Direct execution entrypoint
-if (process.argv[1] && (process.argv[1].endsWith('/cli/index.js') || process.argv[1].endsWith('/cli/index.ts'))) {
+if (
+  process.argv[1] &&
+  (process.argv[1].endsWith('/cli/index.js') || process.argv[1].endsWith('/cli/index.ts'))
+) {
   main().then((exitCode) => {
     process.exit(exitCode);
   });

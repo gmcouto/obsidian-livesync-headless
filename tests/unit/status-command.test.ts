@@ -251,4 +251,28 @@ state:
     expect(parsed.type).toBe('status_report');
     expect(parsed.vaultPath).toBe('/path/to/vault');
   });
+
+  it('routes status command via main CLI entrypoint correctly', async () => {
+    const { main } = await import('../../src/cli/index.js');
+
+    // Missing config
+    const errCode = await main(['status']);
+    expect(errCode).toBe(EXIT_CODES.CONFIG_ERROR);
+
+    // Valid config
+    const originalWrite = process.stdout.write;
+    try {
+      let stdout = '';
+      process.stdout.write = ((chunk: any) => {
+        stdout += String(chunk);
+        return true;
+      }) as any;
+
+      const code = await main(['status', '-c', configPath]);
+      expect(code).toBe(EXIT_CODES.SUCCESS);
+      expect(stdout).toContain('OBSIDIAN LIVESYNC VAULT STATUS');
+    } finally {
+      process.stdout.write = originalWrite;
+    }
+  });
 });
