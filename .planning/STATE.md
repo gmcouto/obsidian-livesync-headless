@@ -112,6 +112,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 260906-kod | create readme documentation of the app | 2026-09-06 | e6ffe80 | [260906-kod-create-readme-documentation-of-the-app](./quick/260906-kod-create-readme-documentation-of-the-app/) |
 | 260906-n3e | Please make docker respect docker user setup, to run in rootless mode | 2026-09-06 | 40abd3a | [260906-n3e-please-make-docker-respect-docker-user-s](./quick/260906-n3e-please-make-docker-respect-docker-user-s/) |
+| 260906-pcw | Improve daemon read-only mode logging: explain why and how to fix | 2026-09-06 | 107554a | [260906-pcw-improve-daemon-read-only-mode-logging-ex](./quick/260906-pcw-improve-daemon-read-only-mode-logging-ex/) |
 
 ## Deferred Items
 
