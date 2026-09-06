@@ -183,6 +183,20 @@ export function formatPullHumanReport(report: PullReport): string {
     lines.push('    (None)');
   }
 
+  const createdCount = report.actions.filter((a) => a.kind === 'create').length;
+  const quarantinedCount = report.actions.filter((a) => a.kind === 'quarantine-delete').length;
+  const noopCount = report.actions.filter((a) => a.kind === 'noop').length;
+  const skippedCount = report.actions.filter((a) => a.kind.startsWith('skip')).length;
+  const blockedCount = report.actions.filter((a) => a.kind === 'block').length;
+
+  lines.push('');
+  lines.push('  Action Summary:');
+  lines.push(`    Created:                ${createdCount}`);
+  lines.push(`    Quarantined:            ${quarantinedCount}`);
+  lines.push(`    Unchanged (noop):       ${noopCount}`);
+  lines.push(`    Skipped:                ${skippedCount}`);
+  lines.push(`    Blocked:                ${blockedCount}`);
+
   lines.push('');
   lines.push('  Planned Actions:');
   if (report.actions.length > 0) {
@@ -219,6 +233,12 @@ export function formatPullHumanReport(report: PullReport): string {
 }
 
 export function formatPullJsonLinesReport(report: PullReport): string {
+  const created = report.actions.filter((a) => a.kind === 'create').length;
+  const quarantined = report.actions.filter((a) => a.kind === 'quarantine-delete').length;
+  const noop = report.actions.filter((a) => a.kind === 'noop').length;
+  const skipped = report.actions.filter((a) => a.kind.startsWith('skip')).length;
+  const blocked = report.actions.filter((a) => a.kind === 'block').length;
+
   return (
     JSON.stringify({
       type: 'pull_report',
@@ -227,6 +247,13 @@ export function formatPullJsonLinesReport(report: PullReport): string {
       remoteFingerprint: report.remoteFingerprint,
       negotiatedSettingsHash: report.negotiatedSettingsHash,
       adoptedTweaks: report.adoptedTweaks,
+      summary: {
+        created,
+        quarantined,
+        noop,
+        skipped,
+        blocked,
+      },
       actions: report.actions,
       blockers: report.blockers,
       zeroMutationVerified: report.zeroMutationVerified,

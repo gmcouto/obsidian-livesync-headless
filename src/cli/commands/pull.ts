@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readdir, readFile, stat } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
 import { loadConfig, ConfigValidationError } from '../../config/loader.js';
 import { SecretRedactor, defaultRedactor } from '../../security/redaction.js';
 import {
@@ -38,13 +38,16 @@ import {
   type DecodeOptions,
 } from '../../livesync/decode-adapter.js';
 import {
-  buildPullPlan,
+  buildRecoverablePullPlan,
   observationFromDecodeFailure,
   serializePullActions,
   type PullAction,
   type PullObservation,
+  type LocalFileInspection,
+  type ProvenanceLookup,
 } from '../../domain/pull-plan.js';
 import { installAtomically } from '../../filesystem/atomic-reflector.js';
+import { quarantineVaultFile } from '../../filesystem/quarantine-store.js';
 import { preflightVault, type VaultPreflightResult } from '../../filesystem/vault-preflight.js';
 import {
   assertSafeVaultRelativePath,
@@ -53,6 +56,8 @@ import {
 } from '../../domain/path-policy.js';
 import { openDatabase } from '../../storage/sqlite.js';
 import { ProvenanceRepository } from '../../storage/provenance-repo.js';
+import { QuarantineRepository } from '../../storage/quarantine-repo.js';
+import { CheckpointRepository } from '../../storage/checkpoint-repo.js';
 import {
   formatPullHumanReport,
   formatPullJsonLinesReport,
@@ -75,6 +80,8 @@ export async function applyVerifiedPull(
     actions: readonly PullAction[];
     remoteFingerprint: string;
     statePath: string;
+    stateRoot?: string;
+    updateSeq?: string;
   }
 ): Promise<void> {
   if (!isVaultReflectCapability(capability)) {
@@ -83,22 +90,41 @@ export async function applyVerifiedPull(
 
   const db = openDatabase(options.statePath);
   try {
-    const repo = new ProvenanceRepository(db);
-    for (const action of options.actions) {
-      if (action.kind !== 'create') {
-        continue;
-      }
+    const provenanceRepo = new ProvenanceRepository(db);
+    const quarantineRepo = new QuarantineRepository(db);
+    const checkpointRepo = new CheckpointRepository(db);
+    const stateRoot = options.stateRoot ?? dirname(options.statePath);
 
-      await installAtomically(options.vaultRoot, action.path, action.bytes);
-      const dest = join(options.vaultRoot, action.path);
-      const fileStat = await stat(dest);
-      repo.saveProvenance({
-        path: action.path,
-        remoteRevision: action.sourceRevision,
-        contentSha256: createHash('sha256').update(action.bytes).digest('hex'),
-        observedMtime: fileStat.mtimeMs,
+    for (const action of options.actions) {
+      if (action.kind === 'quarantine-delete') {
+        await quarantineVaultFile(
+          options.vaultRoot,
+          stateRoot,
+          action.path,
+          action.sourceRevision,
+          quarantineRepo
+        );
+        provenanceRepo.deleteProvenance(action.path);
+      } else if (action.kind === 'create') {
+        await installAtomically(options.vaultRoot, action.path, action.bytes);
+        const dest = join(options.vaultRoot, action.path);
+        const fileStat = await stat(dest);
+        provenanceRepo.saveProvenance({
+          path: action.path,
+          remoteRevision: action.sourceRevision,
+          contentSha256: createHash('sha256').update(action.bytes).digest('hex'),
+          observedMtime: fileStat.mtimeMs,
+          remoteFingerprint: options.remoteFingerprint,
+          reflectedAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    if (options.updateSeq) {
+      checkpointRepo.saveCheckpoint({
         remoteFingerprint: options.remoteFingerprint,
-        reflectedAt: new Date().toISOString(),
+        lastUpdateSeq: options.updateSeq,
+        completedAt: new Date().toISOString(),
       });
     }
   } finally {
@@ -150,6 +176,22 @@ function applyPathPolicyToPlan(actions: readonly PullAction[], caseInsensitive: 
   const createPaths: string[] = [];
 
   for (const action of actions) {
+    if (action.kind === 'quarantine-delete') {
+      try {
+        assertSafeVaultRelativePath(action.path);
+        next.push(action);
+      } catch (err) {
+        next.push({
+          kind: 'block',
+          id: action.path,
+          path: action.path,
+          code: 'UNSAFE_PATH',
+          message: (err as Error).message,
+        });
+      }
+      continue;
+    }
+
     if (action.kind !== 'create') {
       next.push(action);
       continue;
@@ -195,6 +237,38 @@ function applyPathPolicyToPlan(actions: readonly PullAction[], caseInsensitive: 
       suggestion: 'Rename or resolve the colliding remote files; neither path is materialized',
     };
   });
+}
+
+async function scanLocalFiles(vaultPath: string): Promise<Map<string, LocalFileInspection>> {
+  const map = new Map<string, LocalFileInspection>();
+
+  async function scanDir(dir: string, prefix = ''): Promise<void> {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await scanDir(full, rel);
+      } else if (entry.isFile()) {
+        try {
+          const buf = await readFile(full);
+          const h = createHash('sha256').update(buf).digest('hex');
+          map.set(rel, { exists: true, contentSha256: h });
+        } catch {
+          map.set(rel, { exists: true });
+        }
+      }
+    }
+  }
+
+  await scanDir(vaultPath);
+  return map;
 }
 
 function mergePreflightBlocks(actions: PullAction[], preflight: VaultPreflightResult): PullAction[] {
@@ -435,8 +509,20 @@ export async function runPullCommand(options: PullCommandOptions): Promise<numbe
         ...decodeOptions,
         fetchChunk,
       });
+
+      let existingProvenanceMap = new Map<string, ProvenanceLookup>();
+      const db = openDatabase(config.resolvedStatePath);
+      try {
+        const pRepo = new ProvenanceRepository(db);
+        existingProvenanceMap = pRepo.getAllAsMap();
+      } finally {
+        db.close();
+      }
+
+      const localFilesMap = await scanLocalFiles(config.resolvedVaultPath);
+
       actions = applyPathPolicyToPlan(
-        buildPullPlan(observations),
+        buildRecoverablePullPlan(observations, existingProvenanceMap, localFilesMap),
         !Boolean(decodeOptions.handleFilenameCaseSensitive)
       );
 
@@ -459,6 +545,8 @@ export async function runPullCommand(options: PullCommandOptions): Promise<numbe
           actions,
           remoteFingerprint,
           statePath: config.resolvedStatePath,
+          stateRoot: config.resolvedStatePath,
+          updateSeq: preSnapshot?.updateSeq,
         });
       }
     }
